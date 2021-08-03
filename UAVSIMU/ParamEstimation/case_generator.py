@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-# 飞行包线生成；数据分析；扰动#
+# 飞行包线生成；扰动#
+
 
 import matplotlib.pyplot as plt
 from scipy import signal
@@ -7,6 +8,8 @@ from ControlEfficiencyModel import static_model
 import xlrd
 import random
 import pandas as pd
+import os
+
 
 
 
@@ -63,7 +66,10 @@ class Flight:
         self.capacity = capacity
 
     def load_profile(self, profile):
-
+        path = os.getcwd() + '\\profile.csv'
+        f = open(path, encoding='utf-8')
+        data = pd.read_csv(f)
+        self.profile = data #格式：[t, h, u, v, flightmode, hfmode, wspeed]
 
     def set_plane(self):
         raw = xlrd.open_workbook("plane_data")
@@ -113,33 +119,27 @@ class Flight:
 
 
 
-    def HFlight_by_T(self, end_T, caseNo = 0, wind = 0):
-        sub_case = []
-
-        for i in range(len(self.main_case)):
-            if self.main_case[i] == caseNo:
-                sub_case.append(i)
-
-        while self.T<end_T:
-
-            if wind == 0:
-                self.case[caseNo].FlightStat = 1
-                self.case[caseNo].HFlightMode = 0
-                self.updater(caseNo)
-                for k in range(len(sub_case)):
-                    self.case[sub_case[k]].FlightStat = 1
-                    self.case[sub_case[k]].HFlightMode = 0
-                    self.updater(sub_case[k])
-
-            else:
-                self.updater(caseNo)
-                w_speed = self.case[caseNo].get_wind_speed()
-                for k in range(len(sub_case)):
-                    self.case[sub_case[k]].set_wind_speed(w_speed)
-                    self.updater(sub_case[k], wind = 1)
+    # def HFlight_by_T(self, end_T, caseNo = 0, wind = 0):
+    #     while self.T<end_T:
+    #
+    #         if wind == 0:
+    #             self.case[caseNo].FlightStat = 1
+    #             self.case[caseNo].HFlightMode = 0
+    #             self.updater(caseNo)
+    #             for k in range(len(sub_case)):
+    #                 self.case[sub_case[k]].FlightStat = 1
+    #                 self.case[sub_case[k]].HFlightMode = 0
+    #                 self.updater(sub_case[k])
+    #
+    #         else:
+    #             self.updater(caseNo)
+    #             w_speed = self.case[caseNo].get_wind_speed()
+    #             for k in range(len(sub_case)):
+    #                 self.case[sub_case[k]].set_wind_speed(w_speed)
+    #                 self.updater(sub_case[k], wind = 1)
 
 
-    def plot_state(self):
+    # def plot_state(self):
 
 
 class FlightProfileGenerator:

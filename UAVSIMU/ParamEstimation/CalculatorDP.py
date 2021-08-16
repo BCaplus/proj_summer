@@ -59,11 +59,15 @@ class DP_calculator:
             for n in range(self.nDiscrt):
                 self.StepSearcher(n)
 
-    def step_to_step_calculator(self, ancestorStat, decentStat, k):
-
-        ws
-        case.
-
+    def step_to_step_calculator(self, ancestorStat, decentStat, k): #k的定义：时间点对应的列表索引 而非逻辑索引
+        #读取当前风速等信息
+        wspeed = self.profile.[k-1][6]
+        # K的边界检查在本方法的外部进行
+        self.case.set_wind(wspeed)
+        #
+        hfMode = self.profile[k-1][5]
+        flightMode = self.profile[k-1][4]
+        self.case.
     def StepSearcher(self,n,k):
         # 计算两个状态间的油量、SoC变化在ControlEffMod里进行,n是功率点的索引序号（0~140),k是当前的时间步数
         # 后向计算
@@ -82,6 +86,7 @@ class DP_calculator:
         acents = [(lowerBound + i*temp) for i in range(n_search+1)]
         Pf_present = self.PEngine[k][n]
         for candidate in acents:
+            # 生成Stat，格式[Fmass, Pengine, SoC, costF]
             decentStat = [self.FCmass, self.PEngine, self.SoC, self.costF]
             acentStat = [0, candidate, self.SoC, self.costF]
             self.

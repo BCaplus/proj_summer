@@ -321,9 +321,25 @@ class static_model:
             self.wind_counter+=self.dt
 
 
-    def sectional_compt(self, initial_state, backward_state, profile, k):
-        wspeed = profile[k][6]
-        weight_initial
+    def sectional_compt(self, initial_state, backward_state, profile, k, recur = 5):
+        # profile的格式：[t h u v flightmode hfmode wspeed]
+        # stat的格式[Fmass, Pengine, SoC, costF]
+        wspeed = profile[6]
+        self.set_wind(wspeed)
+        hfMode = int(self.profile[5])
+        flightMode = int(self.profile[4]) #取值 0：上升或下降（取决于v的值） 1：平飞
+        weight_initial = initial_state[0]+self.dry_weight
+        self.total_weight = weight_initial
+        self.FlightStat = flightMode
+        self.update_T()
+        self.u = profile[2]
+        self.v = profile[3]
+        self.update_propeller()
+        self.update_motor()
+        Pengine = backward_state[1]
+        P_req = self.
+
+
 
 
     def get_wind_speed(self):

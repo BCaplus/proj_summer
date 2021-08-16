@@ -232,3 +232,8 @@ class FlightProfileGenerator:
     def export_profile(self):
         outer = pd.DataFrame(data=self.profile)
         outer.to_csv("profile.csv")
+
+test = FlightProfileGenerator(5)
+test.add_climb(200,100)
+test.add_hflight(6,400,w_on=1,w=10)
+test.export_profile()

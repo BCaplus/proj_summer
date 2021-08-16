@@ -321,7 +321,10 @@ class static_model:
             self.wind_counter+=self.dt
 
 
-    def sectional_compt(self, initial_state, ):
+    def sectional_compt(self, initial_state, backward_state, profile, k):
+        wspeed = profile[k][6]
+        weight_initial
+
 
     def get_wind_speed(self):
         return self.wind_speed

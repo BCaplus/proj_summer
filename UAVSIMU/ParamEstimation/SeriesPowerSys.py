@@ -13,7 +13,7 @@ class SHPS:
         self.Ub = Ub
         self.Imax = Param[0]
         self.Gshps = Param[1]
-        self.capacity = capacity*3600/Ub
+        self.capacity = capacity*3600/Ub #转换后单位 [As]
         self.SoC = SoC
         self.fuelMass = InitFuelMass
         self.dt = dt
@@ -45,6 +45,11 @@ class SHPS:
         #print(FC)
         wfuel = FC*(U*I/1000)/3600000
         self.FC = wfuel
+        return wfuel
+
+    def get_optFC_P(self,P): #注意，P的单位是kW
+        FC = self.ecms.opt_search(P)
+        wfuel = FC*(P/1000)/3600000
         return wfuel
 
     def ECMS_RULE(self, Ib):

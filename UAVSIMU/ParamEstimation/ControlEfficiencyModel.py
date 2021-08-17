@@ -215,6 +215,9 @@ class static_model:
         temp = self.n*self.motor.get_MotorP()/self.powerSys.get_total_power()
         return temp
 
+    def get_FC_by_P(self,P):
+        return self.powerSys.get_optFC_P(P)
+
     def get_Motor_efficiency(self):
         temp = self.prop.get_P()/self.motor.get_MotorP()
         return temp
@@ -323,12 +326,21 @@ class static_model:
 
     def sectional_compt(self, initial_state, backward_state, profile, k, recur = 5):
         # profile的格式：[t h u v flightmode hfmode wspeed]
+
+        #测试时手动设置，也可来自于发动机运行曲线搜索
+        # 燃料热值
+        Hfuel = 44000000 #汽油,J/kg
+        Hf_coefficient  = Hfuel #暂时不调参
+
+        minFC = self.powerSys.ecms.get_min_reduced_FC()
         # stat的格式[Fmass, Pengine, SoC, costF]
         wspeed = profile[6]
         self.set_wind(wspeed)
         hfMode = int(self.profile[5])
         flightMode = int(self.profile[4]) #取值 0：上升或下降（取决于v的值） 1：平飞
         weight_initial = initial_state[0]+self.dry_weight
+        SoC_initial = initial_state[2]
+        costF_initial = initial_state[3]
         self.total_weight = weight_initial
         self.FlightStat = flightMode
         self.update_T()
@@ -337,7 +349,19 @@ class static_model:
         self.update_propeller()
         self.update_motor()
         Pengine = backward_state[1]
-        P_req = self.
+        P_req = self.ESC.get_ESC_power()
+        P_bat = P_req - Pengine
+        max_P_bat = self.powerSys.Ibmax * self.powerSys.Ub / 1000 #单位是kW
+        if abs(P_bat)<max_P_bat:
+            # 如果不离散SoC,无需迭代；否则recur得到上一步的状态点
+            # for i in range(recur):
+            #     #迭代求SoC
+            wfuel = self.get_FC_by_P(Pengine)
+            weight_backward = weight_initial + wfuel #单位为kg【待检查】
+            SoC_backward = SoC_initial - P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
+            costF_backward = costF_initial + (电池上的耗电) +
+
+
 
 
 

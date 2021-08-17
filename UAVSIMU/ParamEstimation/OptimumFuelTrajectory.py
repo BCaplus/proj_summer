@@ -24,6 +24,7 @@ class OptimumFC:
         self.n_lowerbound = 1000
         self.P_upbound = 15800
         self.P_lowerbound = 1000
+        self.min_reduced_FC = 10000 #初始化
 
     def _take_P(self,ele):
         return ele[0]
@@ -139,6 +140,8 @@ class OptimumFC:
 
                     if temp < C_opt[k]:
                         C_opt[k] = temp
+                    if C_opt[k] < self.min_reduced_FC:
+                        self.min_reduced_FC = C_opt[k]
         plt.plot(P, C_opt)
         self.FC_opt = [P,C_opt]
 
@@ -220,6 +223,9 @@ class OptimumFC:
             else:
                 temp = yn[index][1]
         return temp
+
+    def get_min_reduced_FC(self):
+        return self.min_reduced_FC
 
     def draw_contour(self):
         n = np.array(self.n_group)

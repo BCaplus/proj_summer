@@ -79,6 +79,9 @@ class FuelManagement:
         temp = self.__fuelcomsup.get_Opt_FC_DOUBLE_Interp(Pem)
         return temp
 
+    def get_min_reduced_FC(self):
+        return self.__fuelcomsup.get_min_reduced_FC()
+
     def split(self, pnet, search_range = [1, 15.8]):
 
         Pnet = pnet/1000

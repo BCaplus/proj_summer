@@ -359,6 +359,7 @@ class static_model:
             wfuel = self.get_FC_by_P(Pengine)
             weight_backward = weight_initial + wfuel #单位为kg【待检查】
             SoC_backward = SoC_initial - P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
+            BatteryDissipation =
             costF_backward = costF_initial + (电池上的耗电) +
 
 

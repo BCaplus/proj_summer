@@ -324,7 +324,7 @@ class static_model:
             self.wind_counter+=self.dt
 
 
-    def sectional_compt(self, initial_state, backward_state, profile, k, recur = 5):
+    def sectional_compt(self, initial_state, Pengine_backward, profile, k, recur = 5):
         # profile的格式：[t h u v flightmode hfmode wspeed]
 
         #测试时手动设置，也可来自于发动机运行曲线搜索
@@ -338,6 +338,7 @@ class static_model:
         self.set_wind(wspeed)
         hfMode = int(self.profile[5])
         flightMode = int(self.profile[4]) #取值 0：上升或下降（取决于v的值） 1：平飞
+        Fmass_initial = initial_state[0]
         weight_initial = initial_state[0]+self.dry_weight
         SoC_initial = initial_state[2]
         costF_initial = initial_state[3]
@@ -348,19 +349,33 @@ class static_model:
         self.v = profile[3]
         self.update_propeller()
         self.update_motor()
-        Pengine = backward_state[1]
+        Pengine = Pengine_backward
         P_req = self.ESC.get_ESC_power()
         P_bat = P_req - Pengine
         max_P_bat = self.powerSys.Ibmax * self.powerSys.Ub / 1000 #单位是kW
+        # 检查搜索可行性应该在外部做 这里只进行一个电池最大功率的保险
+        # SoC可用性应该在外面做
         if abs(P_bat)<max_P_bat:
             # 如果不离散SoC,无需迭代；否则recur得到上一步的状态点
             # for i in range(recur):
             #     #迭代求SoC
-            wfuel = self.get_FC_by_P(Pengine)
-            weight_backward = weight_initial + wfuel #单位为kg【待检查】
+            wfuel, reducedFC = self.get_FC_by_P(Pengine) #还需要查比油耗
+            weight_backward = weight_initial + wfuel*self.dt #单位为kg【待检查】
+            Fmass_backward = Fmass_initial + wfuel*self.dt
             SoC_backward = SoC_initial - P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
-            BatteryDissipation =
-            costF_backward = costF_initial + (电池上的耗电) +
+            Ub = self.Ub #电池电压 同时也当开路电压用 假装有个效率1的变压器
+            Rb = self.powerSys.ecms.Bat.Rdis
+            sqrt = math.sqrt(Ub*Ub - 4*Rb*P_bat)
+            BatteryDissipation = 0.5*Ub*Ub/Rb - 0.5*Ub*sqrt/Rb - P_bat
+            costF_backward = costF_initial + BatteryDissipation*self.dt + (reducedFC - minFC)*Hfuel*Pengine*self.dt #[待检查]
+        else:
+            costF_backward = -1 #用-1表示不可到达（在更新时也要检查，注意costF原本为负时可以用新的正值来覆盖）
+            SoC_backward = -1
+            Fmass_backward = -1
+            Pengine = Pengine_backward
+        return [Fmass_backward,Pengine_backward,SoC_backward,costF_backward]
+
+
 
 
 

@@ -69,34 +69,19 @@ class DP_calculator:
 
     def DP_P_as_state_var(self):
         # 逆向计算
-        for k in range(self.k-1,-1,0):
-            self.step_to_step_calculator_P_state_var(k)
+        for k in range(self.k):
+            self.step_to_step_calculator(k)
         # 遍历寻找初态最低的Fmass
-        for n in range(self.nDiscrt):
-            minFC_index = -1 # 防空
-            if
 
-
-    # def DP_P_SoC_as_state_var(self):
-    #     # 逆向计算
-    #     for k in range(self.k):
-    #         self
+    def DP_P_SoC_as_state_var(self):
+        # 逆向计算
+        for k in range(self.k):
+            self
 
     def step_to_step_calculator_P_state_var(self, k): #k的定义：时间点对应的列表索引 而非逻辑索引
         #读取当前风速等信息
         if k == 0:
             print("out of boundary")
-        elif k == 1:
-            # K的边界检查在本方法的外部进行
-            wspeed = self.profile[k - 1][6]
-            self.case.set_wind(wspeed)
-            # 读入上一个时间步的飞行条件
-            hfMode = self.profile[k-1][5]
-            flightMode = self.profile[k-1][4]
-            u_expect = self.profile[k-1][]
-            self.case.HFlightMode = hfMode
-            self.case.flight_stat = flightMode
-            self.init_state_sticker(k)
         else:
             # K的边界检查在本方法的外部进行
             wspeed = self.profile[k - 1][6]
@@ -107,7 +92,7 @@ class DP_calculator:
             u_expect = self.profile[k-1][]
             self.case.HFlightMode = hfMode
             self.case.flight_stat = flightMode
-            self.StateUpdater_P_state_var(k)
+            self.StatusUpdater(k)
 
     def StateUpdater_P_state_var(self,k):
         # 计算两个状态间的油量、SoC变化在ControlEffMod里进行,n是功率点的索引序号（0~140),k是当前的时间步数
@@ -118,10 +103,10 @@ class DP_calculator:
                 #确定搜索域 边界：（1）不超过发动机输出边界 （2）不使Pbat超过电池功率边界 （3）SoC不低于0（可以大于1，矫正即可） 由于总需求功率在状态量循环层未知，（2）（3）在计算层检查
 
                 for PengineIndex in range(self.nDiscrt):
-                    prePengine = self.PEngine[k - 1][PengineIndex]
+                    prePengine = self.PEngine[k][PengineIndex]
                     # 生成Stat，格式[Fmass, Pengine, SoC, costF]
-                    fowardStat = [self.Fmass[k][StatusIndex], self.PEngine[k][StatusIndex], self.SoC[k][StatusIndex], self.costF[k][StatusIndex]]
-                    backwardStat = self.case.sectional_compt(fowardStat,prePengine,self.profile[k-1],k) #暂时没有迭代
+                    fowardStat = [self.Fmass, self.PEngine, self.SoC, self.costF]
+                    backwardStat = self.case.sectional_compt(fowardStat,prePengine,k) #暂时没有迭代
                     # 更新前向点
                     if backwardStat[3] != -1: #检查本次计算结果有没有意义
                         if backwardStat[3] < self.costF[k][PengineIndex]:
@@ -129,33 +114,15 @@ class DP_calculator:
                             self.Fmass[k][PengineIndex] = backwardStat[0]
                             self.SoC[k][PengineIndex] = backwardStat[2]
                             self.costF[k][PengineIndex] = backwardStat[3]
-    def init_state_sticker(self,k):
-        if k!=1:
-            print("wrong call")
-        else:
-            for StateIndex in range(self.nDiscrt):
-                if self.costF[k][StateIndex] != -1:
 
-                    for PengineIndex in range(self.nDiscrt):
-                        prePengine = self.PEngine[k - 1][PengineIndex]
-                        fowardStat = [self.Fmass[k][StateIndex], self.PEngine[k][StateIndex],
-                                      self.SoC[k][StateIndex], self.costF[k][StateIndex]]
-                        backwardStat = self.case.sectional_compt(fowardStat, prePengine, self.profile[k - 1], k)# 暂时没有迭代 迭代的话也写在这里面
-                        if backwardStat[3] != 1 and  backwardStat[2] == 1:
-                            self.Fmass[k][PengineIndex] = backwardStat[0]
-                            self.SoC[k][PengineIndex] = backwardStat[2]
-                            self.costF[k][PengineIndex] = backwardStat[3]
+    def StateUpdater_P_SoC_var(self,k):
+
+        # 在本层进行状态循环和吸附
+        for PIndex in range(self.nDiscrt):
+            for SoCIndex in range(self.mDiscrt):
+                if self.
 
 
 
-    # def StateUpdater_P_SoC_var(self,k):
-    #
-    #     # 在本层进行状态循环和吸附
-    #     for PIndex in range(self.nDiscrt):
-    #         for SoCIndex in range(self.mDiscrt):
-    #             if self.
-
-
-test =
 
 

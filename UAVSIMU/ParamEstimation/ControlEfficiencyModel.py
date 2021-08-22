@@ -27,7 +27,7 @@ class static_model:
         self.n = n #旋翼数
         self.dry_weight = dry_weight + capacity/EnergyDensity
         self.dt = dt
-        self.Capacity = capacity
+        self.Capacity = capacity # Wh
         self.total_weight = MaxFuelMass + self.dry_weight
         self.T = self.total_weight*self.g/math.cos(self.theta)
         # 电机电调
@@ -353,7 +353,7 @@ class static_model:
         P_req = self.ESC.get_ESC_power()
         P_bat = P_req - Pengine
         max_P_bat = self.powerSys.Ibmax * self.powerSys.Ub / 1000 #单位是kW
-        # 检查搜索可行性应该在外部做 这里只进行一个电池最大功率的保险
+        # 检查搜索可行性应该在外部做 这里进行一个电池最大功率的保险和SoC越界的检查
         # SoC可用性应该在外面做
         if abs(P_bat)<max_P_bat:
             # 如果不离散SoC,无需迭代；否则recur得到上一步的状态点
@@ -363,24 +363,31 @@ class static_model:
             weight_backward = weight_initial + wfuel*self.dt #单位为kg【待检查】
             Fmass_backward = Fmass_initial + wfuel*self.dt
             SoC_backward = SoC_initial - P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
-            Ub = self.Ub #电池电压 同时也当开路电压用 假装有个效率1的变压器
-            Rb = self.powerSys.ecms.Bat.Rdis
-            sqrt = math.sqrt(Ub*Ub - 4*Rb*P_bat)
-            BatteryDissipation = 0.5*Ub*Ub/Rb - 0.5*Ub*sqrt/Rb - P_bat
-            costF_backward = costF_initial + BatteryDissipation*self.dt + (reducedFC - minFC)*Hfuel*Pengine*self.dt #[待检查]
+            # SoC可用性检查
+            if SoC_backward > 0:
+                Ub = self.Ub #电池电压 同时也当开路电压用 假装有个效率1的变压器
+                Rb = self.powerSys.ecms.Bat.Rdis
+                sqrt = math.sqrt(Ub*Ub - 4*Rb*P_bat)
+                BatteryDissipation = 0.5*Ub*Ub/Rb - 0.5*Ub*sqrt/Rb - P_bat
+                costF_backward = costF_initial + BatteryDissipation*self.dt + (reducedFC - minFC)*Hfuel*Pengine*self.dt #[待检查]
+                if SoC_backward > 1:
+                    # 充电溢出能量
+                    costF_backward = costF_backward + (SoC_backward - 1)*self.Capacity*3600
+                    # 校正
+                    SoC_backward = 1
+            else:
+                costF_backward = -1  # 用-1表示不可到达（在更新时也要检查，注意costF原本为负时可以用新的正值来覆盖）
+                SoC_backward = -1
+                Fmass_backward = -1
+                Pengine = Pengine_backward
         else:
             costF_backward = -1 #用-1表示不可到达（在更新时也要检查，注意costF原本为负时可以用新的正值来覆盖）
             SoC_backward = -1
             Fmass_backward = -1
             Pengine = Pengine_backward
+
         return [Fmass_backward,Pengine_backward,SoC_backward,costF_backward]
-
-
-
-
-
-
-
+        # 暂且写成这样
 
     def get_wind_speed(self):
         return self.wind_speed

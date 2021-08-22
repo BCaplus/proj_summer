@@ -72,9 +72,9 @@ class Flight:
         self.profile = data #格式：[t, h, u, v, flightmode, hfmode, wspeed]
 
     def set_plane(self):
-        raw = xlrd.open_workbook("plane_data")
+        raw = xlrd.open_workbook("plane_data.xls")
         sh = raw.sheet_by_name("Sheet1")
-        for i in range(sh.nrols):
+        for i in range(sh.nrows):
             row = [str(sh.cell_value(j, i)) for j in range(0, sh.ncols)]
             # 检查机体参数
             if "N_rotor" in row[0]:
@@ -233,7 +233,11 @@ class FlightProfileGenerator:
         outer = pd.DataFrame(data=self.profile)
         outer.to_csv("profile.csv")
 
-test = FlightProfileGenerator(5)
-test.add_climb(200,100)
-test.add_hflight(6,400,w_on=1,w=10)
-test.export_profile()
+# test = FlightProfileGenerator(5)
+# test.add_climb(200,100)
+# test.add_hflight(6,400,w_on=1,w=10)
+# test.export_profile()
+
+test2 = Flight(4,63,12,900)
+test2.set_plane()
+print(test2.cd1)

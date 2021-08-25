@@ -83,7 +83,7 @@ class OptimumFC:
         self.P_upper_bounds = upper_P_bound
         self.P_upbound = max(self.P_upper_bounds)
         self.P_lowerbound = min(self.P_lower_bounds)
-        print(self.P_lowerbound)
+        # print(self.P_lowerbound)
         self.OptimumCalc_non_rec()
 
     def import_map_bycol(self):
@@ -123,14 +123,14 @@ class OptimumFC:
 
     def OptimumCalc_non_rec(self, shape = _map_shape):
         m = int(shape[0]*shape[1]/3)
-        print(m)
+        # print(m)
         P = np.linspace(self.P_lowerbound, self.P_upbound, m)
         C_opt = [2000 for i in range(m)]
-        print("{")
-        print(self.P_upper_bounds)
-        print(self.P_lower_bounds)
-        print(self.map[6])
-        print(self.line_interp(8, np.array(self.map[6]),mode = 1))
+        # print("{")
+        # print(self.P_upper_bounds)
+        # print(self.P_lower_bounds)
+        # print(self.map[6])
+        # print(self.line_interp(8, np.array(self.map[6]),mode = 1))
         for k in range(m):
             for i in range(shape[1]):
                 if self.P_upper_bounds[i]>= P[k] >=self.P_lower_bounds[i]:
@@ -142,24 +142,25 @@ class OptimumFC:
                         C_opt[k] = temp
                     if C_opt[k] < self.min_reduced_FC:
                         self.min_reduced_FC = C_opt[k]
-        plt.plot(P, C_opt)
+        # plt.plot(P, C_opt)
         self.FC_opt = [P,C_opt]
 
         FC_temp = np.polyfit(P, C_opt, 18)
         self.FC_fit = FC_temp
-        config = {
-            "font.family": 'serif',
-            "font.size": 16,
-            "mathtext.fontset": 'stix',
-            "font.serif": ['SimSun'],
-        }
-        plt.rcParams.update(config)
-        plt.plot(P, np.polyval(self.FC_fit, P))
-        plt.xlim(0,15)
-        plt.ylim(300,500)
-        plt.xlabel("功率 /kW",fontsize=14)
-        plt.ylabel("比油耗 /(g/kWh)",fontsize=14)
-        plt.show()
+        # 以下是画图部分
+        # config = {
+        #     "font.family": 'serif',
+        #     "font.size": 16,
+        #     "mathtext.fontset": 'stix',
+        #     "font.serif": ['SimSun'],
+        # }
+        # plt.rcParams.update(config)
+        # plt.plot(P, np.polyval(self.FC_fit, P))
+        # plt.xlim(0,15)
+        # plt.ylim(300,500)
+        # plt.xlabel("功率 /kW",fontsize=14)
+        # plt.ylabel("比油耗 /(g/kWh)",fontsize=14)
+        # plt.show()
 
 
     def OptimumCalc(self, shape = _map_shape):

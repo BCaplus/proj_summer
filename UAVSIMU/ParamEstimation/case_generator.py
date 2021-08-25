@@ -75,7 +75,7 @@ class Flight:
         raw = xlrd.open_workbook("plane_data.xls")
         sh = raw.sheet_by_name("Sheet1")
         for i in range(sh.nrows):
-            row = [str(sh.cell_value(j, i)) for j in range(0, sh.ncols)]
+            row = [str(sh.cell_value(i, j)) for j in range(0, sh.ncols)]
             # 检查机体参数
             if "N_rotor" in row[0]:
                 self.n = int(row[1])
@@ -85,8 +85,13 @@ class Flight:
                 self.plane_param[1] = float(row[1])
             if "Cd2" in row[0]:
                 self.plane_param[2] = float(row[1])
-            if "S" in row[0]:
+            if row[0] == 'S':
+                # print(row)
+                # print('S is'+row[1])
                 self.plane_param[0] = float(row[1])
+            if "number of rotors" in row[0]:
+                self.n = int(float(row[1]))
+
             # 旋翼参数
             if "DP" in row[0]:
                 self.prop_param[0] = float(row[1])
@@ -111,6 +116,7 @@ class Flight:
 
         temp = static_model(self.plane_param[2], self.plane_param[0], self.plane_param[1], self.dryweight, self.max_fuel_mass, self.dt, self.capacity, self.ESC_param[0], n=self.n)
         self.case = temp
+
 
 
 

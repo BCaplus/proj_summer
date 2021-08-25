@@ -64,15 +64,11 @@ class DP_calculator:
 
     # 初始化
     def initialization(self):
-        self.Fmass = [[0 for i in range(self.nDiscrt)]for j in range(self.k)]
+        self.Fmass = [[[0 for m in range(self.mDiscrt)] for i in range(self.nDiscrt)]for j in range(self.k)]
         self.costF = [[-1 for i in range(self.nDiscrt)]for j in range(self.k)]
-        self.SoC = [[0 for i in range(self.nDiscrt)]for j in range(self.k)]
+        self.SoC = [[self.SoCLowerBound + i*self.SoCInterval for i in range(self.mDiscrt)]for j in range(self.k)]
         self.PEngine = [[self.PLowerBound + i*self.PInterval for i in range(self.nDiscrt)]for j in range(self.k)]
         self.costF[self.k - 1] = [0 for i in range(self.nDiscrt)]
-        # 初始化路径空间
-        self.Proute = [[0 for i in range(self.nDiscrt)]for j in range(self.k)]
-        # 初始化Preq
-        self.PreqFinal = [[0 for i in range(self.nDiscrt)]for j in range(self.k)]
         print("state space initialized")
         # 为变化的末态P预留的空间
         # self.
@@ -80,10 +76,10 @@ class DP_calculator:
     def set_initial_values_of_SoC(self, initial_SoC):
         self.SoC[self.k - 1] = [initial_SoC for i in range(self.nDiscrt)]
 
-    def DP_P_as_state_var(self):
+    def DP_PandSoC_as_state_var(self):
         # 逆向计算
         for k in range(self.k-1,0,-1):
-            self.step_to_step_calculator_P_state_var(k)
+            self.step_to_step_calculator_P_and_SoC_state_var(k)
         # 遍历寻找初态最低的Fmass
         outer = pd.DataFrame(data=self.SoC)
         outer.to_csv("SoC.csv")
@@ -95,28 +91,14 @@ class DP_calculator:
             if 0<self.Fmass[0][n]<minFC:
                 minFC_index = n
                 minFC = self.Fmass[0][n]
-
-        # 回溯正确控制
-        cursor = int(minFC_index)
-        self.finalPe = [0 for i in range(self.k)]
-        self.finalSoC = [0 for i in range(self.k)]
-        self.finalPreq = [0 for i in range(self.k)]
-        self.finalFM = [0 for i in range(self.k)]
-        for index in range(self.k):
-            print(index)
-            self.finalPe[index] = self.PEngine[index][cursor]
-            self.finalSoC[index] = self.SoC[index][cursor]
-            self.finalPreq[index] = self.PreqFinal[index][cursor]
-            self.finalFM[index] = self.Fmass[index][cursor]
-            cursor = int(self.Proute[index][cursor])
-        return [minFC_index, minFC],[self.finalPe, self.finalPreq, self.finalFM, self.finalSoC]
+        return [minFC_index, minFC]
 
     # def DP_P_SoC_as_state_var(self):
     #     # 逆向计算
     #     for k in range(self.k):
     #         self
 
-    def step_to_step_calculator_P_state_var(self, k): #k的定义：时间点对应的列表索引 而非逻辑索引
+    def step_to_step_calculator_P_and_SoC_state_var(self, k): #k的定义：时间点对应的列表索引 而非逻辑索引
         #读取当前风速等信息
         if k == 0:
             print("out of boundary")
@@ -152,14 +134,14 @@ class DP_calculator:
             self.case.set_u_ideal(u_expect)
             self.case.set_vertical_speed(v_expect)
             # 计算
-            self.StateUpdater_P_state_var(k)
+            self.StateUpdater_P_and_SoC_state_var(k)
             # print(self.SoC[k])
             # print(self.costF[k-1])
 
-    def StateUpdater_P_state_var(self,k):
+    def StateUpdater_P_and_SoC_state_var(self,k):
         # 计算两个状态间的油量、SoC变化在ControlEffMod里进行,n是功率点的索引序号（0~140),k是当前的时间步数
         # 后向计算
-        # 从状态空间中的每个状态点依次向前更新
+        # 从状态空间中的每个状态点依次向前更新,状态空间是二维的
         for StatusIndex in range(self.nDiscrt):
             if self.costF[k][StatusIndex] != -1: #检查当前时间点状态点有效性
                 # print("in")
@@ -170,7 +152,7 @@ class DP_calculator:
                     prePengine = self.PEngine[k - 1][PengineIndex]
                     # 生成Stat，格式[Fmass, Pengine, SoC, costF]
 
-                    backwardStat,P_req = self.case.sectional_compt(fowardStat,prePengine,self.profile[k-1],k) #暂时没有迭代
+                    backwardStat = self.case.sectional_compt(fowardStat,prePengine,self.profile[k-1],k) #暂时没有迭代
                     # 更新前向点
 
                     if backwardStat[3] != -1: #检查本次计算结果有没有意义
@@ -180,8 +162,6 @@ class DP_calculator:
                             self.costF[k - 1][PengineIndex] = backwardStat[3]
                             self.Fmass[k - 1][PengineIndex] = backwardStat[0]
                             self.SoC[k - 1][PengineIndex] = backwardStat[2]
-                            self.Proute[k - 1][PengineIndex] = StatusIndex
-                            self.PreqFinal[k - 1][PengineIndex] = P_req
                         else:
 
                             if backwardStat[3] < self.costF[k - 1][PengineIndex]:
@@ -191,14 +171,13 @@ class DP_calculator:
                                 self.Fmass[k - 1][PengineIndex] = backwardStat[0]
                                 self.SoC[k - 1][PengineIndex] = backwardStat[2]
                                 self.costF[k - 1][PengineIndex] = backwardStat[3]
-                                self.Proute[k - 1][PengineIndex] = StatusIndex
-                                self.PreqFinal[k - 1][PengineIndex] = P_req
+
 
                             # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))
                             # print(self.costF[k - 1])
 
         print("finished step: "+str(k)+"current SoC is /n")
-        print(self.Fmass[k - 1])
+        print(self.SoC[k - 1])
         # --print(self.Fmass[k-1])
 
     def init_state_sticker(self,k):
@@ -212,13 +191,13 @@ class DP_calculator:
                         prePengine = self.PEngine[k - 1][PengineIndex]
                         fowardStat = [self.Fmass[k][StateIndex], self.PEngine[k][StateIndex],
                                       self.SoC[k][StateIndex], self.costF[k][StateIndex]]
-                        backwardStat,P_req = self.case.sectional_compt(fowardStat, prePengine, self.profile[k - 1], k)# 暂时没有迭代 迭代的话也写在这里面
+                        backwardStat = self.case.sectional_compt(fowardStat, prePengine, self.profile[k - 1], k)# 暂时没有迭代 迭代的话也写在这里面
                         if backwardStat[3] != -1 and  backwardStat[2] > 0:
                             self.Fmass[k - 1][PengineIndex] = backwardStat[0]
                             self.SoC[k - 1][PengineIndex] = backwardStat[2]
                             self.costF[k - 1][PengineIndex] = backwardStat[3]
-                            self.Proute[k - 1][PengineIndex] = StateIndex
-                            self.PreqFinal[k - 1][PengineIndex] = P_req
+
+
 
     # def StateUpdater_P_SoC_var(self,k):
     #
@@ -254,24 +233,7 @@ test = DP_calculator(profile,flight.case)
 test.set_NO_of_discetized_P(141)
 # test.set_initial_values_of_SoC(0.3)
 test.set_final_state(0.3,0)
-result, optCtrl = test.DP_P_as_state_var() # Pe, Preq, FM, SoC
+result = test.DP_P_as_state_var()
 print(result)
-print(optCtrl[0][0])
-
-
-plt.figure(1)
-#plt.plot( Hf_t, miu_motor)
-plt.subplot(2,1,1)
-t = [i*5 for i in range(test.k)]
-plt.plot(t, optCtrl[0], label = 'PGE')
-#plt.plot(t, average_P_GE, "r--", label = 'Averaged GE Power')
-plt.plot(t, optCtrl[1],"red", label = 'preq')
-plt.ylabel(r"功率 /W")
-plt.legend(loc=0,ncol=1,fontsize=14)
-plt.subplot(2,1,2)
-plt.plot(t, optCtrl[3], label = 'SoC')
-plt.ylabel('SoC')
-plt.xlabel('时间 /s')
-plt.show()
-
+print()
 

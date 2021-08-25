@@ -67,10 +67,8 @@ class ESC:
     # IeMax, Re, Ge, Ub(电调输出电压), Rb（电调等效内阻）
     ESC_Param = [30, 0.021, 0.25, 60, 0.01]
     # 旋翼数
-    global n
-    n = 6
 
-    def __init__(self, Um = [], Im = [], Param = ESC_Param):
+    def __init__(self, Um = [], Im = [], Param = ESC_Param, n = 6):
         self.Um = Um
         self.Im = Im
         self.IeMax = Param[0]
@@ -82,16 +80,17 @@ class ESC:
         self.Ie = [0 for i in range(n)]
         self.Ie_net = 0
         self.Ue = 0
+        self.n = 6
 
     def ThrottleCalc(self):
-        for i in range(n):
+        for i in range(self.n):
             self.Throttle[i] = (self.Um[i] + self.Im[i]*self.Re)/self.Ub
 
     def ESCelec(self):
         # 飞行器辅助部件耗电
         I_ext = 1
 
-        for i in range(n):
+        for i in range(self.n):
             self.Ie[i] = self.Throttle[i]*self.Im[i]
 
         self.Ie_net = sum(self.Ie)

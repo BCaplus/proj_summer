@@ -35,6 +35,7 @@ class DP_calculator:
         self.profile = profile
         self.PSearchRange = [2,2]
         self.k = len(self.profile)
+        self.PbMax = self.case.get_PbMax()
 
         # 离散状态空间写在这里
         self.PLowerBound  = 1 #kW
@@ -51,6 +52,8 @@ class DP_calculator:
 
         self.initialization()
 
+
+
     def set_final_state(self,SoC, Fuelmass):
         # self.endStat = [SoC, Fuel, P_egn] #已统一格式
         self.Fmass[self.k-1] = [Fuelmass for i in range(self.nDiscrt)]
@@ -64,17 +67,25 @@ class DP_calculator:
 
     # 初始化
     def initialization(self):
+
+        # 初始化状态量和控制量空间
         self.Fmass = [[[0 for m in range(self.mDiscrt)] for i in range(self.nDiscrt)]for j in range(self.k)]
-        self.costF = [[-1 for i in range(self.nDiscrt)]for j in range(self.k)]
+        self.costF = [[[-1 for m in range(self.mDiscrt)] for i in range(self.nDiscrt)]for j in range(self.k)]
         self.SoC = [[self.SoCLowerBound + i*self.SoCInterval for i in range(self.mDiscrt)]for j in range(self.k)]
         self.PEngine = [[self.PLowerBound + i*self.PInterval for i in range(self.nDiscrt)]for j in range(self.k)]
-        self.costF[self.k - 1] = [0 for i in range(self.nDiscrt)]
-        print("state space initialized")
+        self.costF[self.k - 1] = [[0 for m in range(self.mDiscrt)] for n in range(self.nDiscrt)]
+
+        # 初始化路径空间,防空
+        self.Proute = [[[[-1,-1] for m in range(self.mDiscrt)] for n in range(self.nDiscrt)] for k in range(self.k)]
+
+        print("data space initialized")
         # 为变化的末态P预留的空间
         # self.
     # 设定初态SoC
-    def set_initial_values_of_SoC(self, initial_SoC):
-        self.SoC[self.k - 1] = [initial_SoC for i in range(self.nDiscrt)]
+    def set_finaL_values_of_SoC(self, initial_SoC_index):
+        for i in range(self.nDiscrt):
+            self.costF[self.k - 1][i][initial_SoC_index] = 0
+
 
     def DP_PandSoC_as_state_var(self):
         # 逆向计算
@@ -88,9 +99,24 @@ class DP_calculator:
         minFC_index = -1  # 防空
         minFC = 100  # 初始
         for n in range(self.nDiscrt):
-            if 0<self.Fmass[0][n]<minFC:
+            if 0<self.Fmass[0][n][self.mDiscrt - 1]<minFC:
                 minFC_index = n
-                minFC = self.Fmass[0][n]
+                minFC = self.Fmass[0][n][self.mDiscrt - 1]
+
+        # 回溯正确控制
+        cursor = int(minFC_index)
+        self.finalPe = [0 for i in range(self.k)]
+        self.finalSoC = [0 for i in range(self.k)]
+        self.finalPreq = [0 for i in range(self.k)]
+        self.finalFM = [0 for i in range(self.k)]
+        for index in range(self.k):
+            print(index)
+            self.finalPe[index] = self.PEngine[index][cursor]
+            self.finalSoC[index] = self.SoC[index][cursor]
+            self.finalPreq[index] = self.PreqFinal[index][cursor]
+            self.finalFM[index] = self.Fmass[index][cursor]
+            cursor = int(self.Proute[index][cursor])
+        return [minFC_index, minFC], [self.finalPe, self.finalPreq, self.finalFM, self.finalSoC]
         return [minFC_index, minFC]
 
     # def DP_P_SoC_as_state_var(self):
@@ -102,23 +128,23 @@ class DP_calculator:
         #读取当前风速等信息
         if k == 0:
             print("out of boundary")
-        elif k == 1:
-            # K的边界检查在本方法的外部进行
-            wspeed = self.profile[k - 1][6]
-            self.case.set_wind(wspeed)
-            # 读入上一个时间步的飞行条件，profile[t h u v flightmode hfmode wspeed]
-            hfMode = self.profile[k-1][5]
-            flightMode = self.profile[k-1][4]
-            u_expect = self.profile[k-1][2]
-            v_expect = self.profile[k-1][3]
-            # h 好像是多余的
-            # 传递给模型
-            self.case.HFlightMode = hfMode
-            self.case.flight_stat = flightMode
-            self.case.set_u_ideal(u_expect)
-            self.case.set_vertical_speed(v_expect)
-            # 计算
-            self.init_state_sticker(k)
+        # elif k == 1:
+        #     # K的边界检查在本方法的外部进行
+        #     wspeed = self.profile[k - 1][6]
+        #     self.case.set_wind(wspeed)
+        #     # 读入上一个时间步的飞行条件，profile[t h u v flightmode hfmode wspeed]
+        #     hfMode = self.profile[k-1][5]
+        #     flightMode = self.profile[k-1][4]
+        #     u_expect = self.profile[k-1][2]
+        #     v_expect = self.profile[k-1][3]
+        #     # h 好像是多余的
+        #     # 传递给模型
+        #     self.case.HFlightMode = hfMode
+        #     self.case.flight_stat = flightMode
+        #     self.case.set_u_ideal(u_expect)
+        #     self.case.set_vertical_speed(v_expect)
+        #     # 计算
+        #     self.init_state_sticker(k)
         else:
             # K的边界检查在本方法的外部进行
             wspeed = self.profile[k - 1][6]
@@ -142,60 +168,91 @@ class DP_calculator:
         # 计算两个状态间的油量、SoC变化在ControlEffMod里进行,n是功率点的索引序号（0~140),k是当前的时间步数
         # 后向计算
         # 从状态空间中的每个状态点依次向前更新,状态空间是二维的
-        for StatusIndex in range(self.nDiscrt):
-            if self.costF[k][StatusIndex] != -1: #检查当前时间点状态点有效性
-                # print("in")
-                #确定搜索域 边界：（1）不超过发动机输出边界 （2）不使Pbat超过电池功率边界 （3）SoC不低于0（可以大于1，矫正即可） 由于总需求功率在状态量循环层未知，（2）（3）在计算层检查
-                fowardStat = [self.Fmass[k][StatusIndex], self.PEngine[k][StatusIndex], self.SoC[k][StatusIndex],
-                              self.costF[k][StatusIndex]]
-                for PengineIndex in range(self.nDiscrt):
-                    prePengine = self.PEngine[k - 1][PengineIndex]
-                    # 生成Stat，格式[Fmass, Pengine, SoC, costF]
+        for PStateIndex in range(self.nDiscrt):
+            for SoCStateIndex in range(self.mDiscrt):
+                # 在二维情况下也只需要检查一个cF
+                if self.costF[k][PStateIndex][SoCStateIndex] != -1: #检查当前时间点状态点有效性
+                    # print("in")
+                    # 确定搜索域 边界：（1）不超过发动机输出边界 （2）不使Pbat超过电池功率边界 （3）SoC不低于0（可以大于1，矫正即可） 由于总需求功率在状态量循环层未知，（2）（3）在计算层检查
+                    fowardStat = [self.Fmass[k][PStateIndex][SoCStateIndex], self.PEngine[k][PStateIndex][SoCStateIndex], self.SoC[k][PStateIndex][SoCStateIndex],
+                                  self.costF[k][PStateIndex][SoCStateIndex]]
+                    # 确认控制量的搜索域
+                    Preq_est = self.case.get_rough_Preq_sectional(fowardStat, profile[k-1])
 
-                    backwardStat = self.case.sectional_compt(fowardStat,prePengine,self.profile[k-1],k) #暂时没有迭代
-                    # 更新前向点
+                    # 定义安全裕量0.3
+                    PbSearchWindow = 1.3
+                    UpperBoundIndex = (Preq_est + self.PbMax*PbSearchWindow - self.PLowerBound)/self.PInterval
+                    if UpperBoundIndex > self.nDiscrt - 1:
+                        UpperBoundIndex = self.nDiscrt - 1
+                    else:
+                        UpperBoundIndex = int(UpperBoundIndex)
 
-                    if backwardStat[3] != -1: #检查本次计算结果有没有意义
-                        if self.costF[k - 1][PengineIndex] == -1:
-                            # if PengineIndex%10 == 0:
-                            # print('init cF case')
-                            self.costF[k - 1][PengineIndex] = backwardStat[3]
-                            self.Fmass[k - 1][PengineIndex] = backwardStat[0]
-                            self.SoC[k - 1][PengineIndex] = backwardStat[2]
-                        else:
+                    if Preq_est - self.PbMax*PbSearchWindow - self.PLowerBound > 0 :
+                        LowerBoundIndex = int((Preq_est - self.PbMax*PbSearchWindow - self.PLowerBound)/self.PInterval)
+                    else:
+                        LowerBoundIndex = 0
 
-                            if backwardStat[3] < self.costF[k - 1][PengineIndex]:
-                            # 替换
-                            #     if PengineIndex % 10 == 0:
-                            #         print('swap case')
-                                self.Fmass[k - 1][PengineIndex] = backwardStat[0]
-                                self.SoC[k - 1][PengineIndex] = backwardStat[2]
-                                self.costF[k - 1][PengineIndex] = backwardStat[3]
+                    # 搜索
+                    for PengineIndex in range(LowerBoundIndex, UpperBoundIndex):
+                        prePengine = self.PEngine[k - 1][PengineIndex]
+                        # 生成Stat，格式[Fmass, Pengine, SoC, costF]
+
+                        # 迭代计算前向
+                        tempStat = fowardStat
+                        recur = 2
+                        for i in range(recur):
+                            backwardStat = self.case.sectional_compt(tempStat,prePengine,self.profile[k-1],k) #暂时没有迭代
+                            tempStat[0] = 0.5*(tempStat[0] + backwardStat[0])
+
+                        # 更新前向点, 该方法仅与输入点的值有关，与状态空间的选定无关
+                        # 但需要确定一下结果检测是不是和双状态兼容
+
+                        if backwardStat[3] != -1: #检查本次计算结果有没有意义
+                            # 需要吸附到有效点,
+                            priSoCIndex = (backwardStat[2] - self.SoCLowerBound)/self.SoCInterval
+                            priSoCIndex = int(priSoCIndex - 0.5) # 四舍五入取整
+
+                            if self.costF[k - 1][PengineIndex][priSoCIndex] == -1:
+
+                                # if PengineIndex%10 == 0:
+                                # print('init cF case')
+                                self.costF[k - 1][PengineIndex][priSoCIndex] = backwardStat[3]
+                                self.Fmass[k - 1][PengineIndex][priSoCIndex] = backwardStat[0]
+                                self.Proute[k - 1][PengineIndex][priSoCIndex] = [PStateIndex, SoCStateIndex]
+                            else:
+                                # 优化目标是油量
+                                if backwardStat[0] < self.Fmass[k - 1][PengineIndex][priSoCIndex]:
+                                # 替换
+                                #     if PengineIndex % 10 == 0:
+                                #         print('swap case')
+                                    self.Fmass[k - 1][PengineIndex][priSoCIndex] = backwardStat[0]
+                                    self.costF[k - 1][PengineIndex][priSoCIndex] = backwardStat[3]
+                                    self.Proute[k - 1][PengineIndex][priSoCIndex] = [PStateIndex, SoCStateIndex]
 
 
-                            # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))
-                            # print(self.costF[k - 1])
+                                # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))
+                                # print(self.costF[k - 1])
 
-        print("finished step: "+str(k)+"current SoC is /n")
-        print(self.SoC[k - 1])
+        print("finished step: "+str(k)+" current Fmass is ")
+        # print(self.SoC[k - 1])
         # --print(self.Fmass[k-1])
 
-    def init_state_sticker(self,k):
-        if k!=1:
-            print("wrong call")
-        else:
-            for StateIndex in range(self.nDiscrt):
-                if self.costF[k][StateIndex] != -1:
-
-                    for PengineIndex in range(self.nDiscrt):
-                        prePengine = self.PEngine[k - 1][PengineIndex]
-                        fowardStat = [self.Fmass[k][StateIndex], self.PEngine[k][StateIndex],
-                                      self.SoC[k][StateIndex], self.costF[k][StateIndex]]
-                        backwardStat = self.case.sectional_compt(fowardStat, prePengine, self.profile[k - 1], k)# 暂时没有迭代 迭代的话也写在这里面
-                        if backwardStat[3] != -1 and  backwardStat[2] > 0:
-                            self.Fmass[k - 1][PengineIndex] = backwardStat[0]
-                            self.SoC[k - 1][PengineIndex] = backwardStat[2]
-                            self.costF[k - 1][PengineIndex] = backwardStat[3]
+    # def init_state_sticker(self,k):
+    #     if k!=1:
+    #         print("wrong call")
+    #     else:
+    #         for StateIndex in range(self.nDiscrt):
+    #             if self.costF[k][StateIndex] != -1:
+    #
+    #                 for PengineIndex in range(self.nDiscrt):
+    #                     prePengine = self.PEngine[k - 1][PengineIndex]
+    #                     fowardStat = [self.Fmass[k][StateIndex], self.PEngine[k][StateIndex],
+    #                                   self.SoC[k][StateIndex], self.costF[k][StateIndex]]
+    #                     backwardStat = self.case.sectional_compt(fowardStat, prePengine, self.profile[k - 1], k)# 暂时没有迭代 迭代的话也写在这里面
+    #                     if backwardStat[3] != -1 and  backwardStat[2] > 0:
+    #                         self.Fmass[k - 1][PengineIndex] = backwardStat[0]
+    #                         self.SoC[k - 1][PengineIndex] = backwardStat[2]
+    #                         self.costF[k - 1][PengineIndex] = backwardStat[3]
 
 
 

@@ -405,6 +405,25 @@ class static_model:
     def get_wind_speed(self):
         return self.wind_speed
 
+    def get_rough_Preq_sectional(self, initial_state, profile):
+        # 输入飞行信息
+        wspeed = profile[6]
+        self.set_wind(wspeed)
+        hfMode = int(profile[5])
+        flightMode = int(profile[4])  # 取值 0：上升或下降（取决于v的值） 1：平飞
+        weight_initial = initial_state[0] + self.dry_weight
+        SoC_initial = initial_state[2]
+        self.total_weight = weight_initial
+        self.FlightStat = flightMode
+        self.HFlightMode = hfMode
+        self.update_T()
+        self.u = profile[2]
+        self.v = profile[3]
+        self.update_propeller()
+        self.update_motor()
+        PreqRough = self.ESC.get_ESC_power() # 单位是w，转换为kW
+        return PreqRough/1000
+
     def wind_cease(self):
         self.wind_speed = 0
         self.wind_counter = 0
@@ -423,3 +442,6 @@ class static_model:
 
     def get_eff_elec(self):
         return 6*self.prop.get_P()/self.powerSys.get_total_power()
+
+    def get_PbMax(self):
+        return self.powerSys.Ub*self.powerSys.Ibmax/1000 #单位为千瓦

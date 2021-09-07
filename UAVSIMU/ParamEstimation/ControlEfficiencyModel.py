@@ -364,6 +364,11 @@ class static_model:
             # for i in range(recur):
             #     #迭代求SoC
             wfuel, reducedFC = self.get_FC_by_P(Pengine) #还需要查比油耗
+            if wfuel<0:
+                error_fuel = wfuel
+                error_T = self.T
+                error_w = self.w
+
             weight_backward = weight_initial + wfuel*self.dt #单位为kg【待检查】
             Fmass_backward = Fmass_initial + wfuel*self.dt
 

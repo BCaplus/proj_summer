@@ -27,7 +27,7 @@ def profile_reader():
     print('step3 done')
     return profile
 
-class DP_calculator:
+class DP_calculator_withSoC:
     def __init__(self,profile,case):
         # self.initState = [] #[SoC, Fuel, P_egn]
         # self.endState = []
@@ -54,16 +54,18 @@ class DP_calculator:
 
 
 
-    def set_final_state(self,SoC, Fuelmass):
-        # self.endStat = [SoC, Fuel, P_egn] #已统一格式
-        self.Fmass[self.k-1] = [Fuelmass for i in range(self.nDiscrt)]
-        self.SoC[self.k - 1] = [SoC for i in range(self.nDiscrt)]
+    # def set_final_state(self,SoC, Fuelmass):
+    #     # self.endStat = [SoC, Fuel, P_egn] #已统一格式
+    #     self.Fmass[self.k-1] = [Fuelmass for i in range(self.nDiscrt)]
+    #     self.SoC[self.k - 1] = [SoC for i in range(self.nDiscrt)]
 
     def set_P_search_range(self,range):
         self.PSearchRange = range
 
     def set_NO_of_discetized_P(self, n):
         self.nDiscrt = n
+        self.PInterval = (self.PUpperBound - self.PLowerBound) / (self.nDiscrt - 1)
+        self.initialization()
 
     # 初始化
     def initialization(self):
@@ -73,7 +75,7 @@ class DP_calculator:
         self.costF = [[[-1 for m in range(self.mDiscrt)] for i in range(self.nDiscrt)]for j in range(self.k)]
         self.SoC = [[self.SoCLowerBound + i*self.SoCInterval for i in range(self.mDiscrt)]for j in range(self.k)]
         self.PEngine = [[self.PLowerBound + i*self.PInterval for i in range(self.nDiscrt)]for j in range(self.k)]
-        self.costF[self.k - 1] = [[0 for m in range(self.mDiscrt)] for n in range(self.nDiscrt)]
+        # self.costF[self.k - 1] = [[0 for m in range(self.mDiscrt)] for n in range(self.nDiscrt)]
 
         # 初始化路径空间,防空
         self.Proute = [[[[-1,-1] for m in range(self.mDiscrt)] for n in range(self.nDiscrt)] for k in range(self.k)]
@@ -82,9 +84,10 @@ class DP_calculator:
         # 为变化的末态P预留的空间
         # self.
     # 设定初态SoC
-    def set_finaL_values_of_SoC(self, initial_SoC_index):
+    def set_finaL_values_of_SoC(self, final_SoC):
+        final_SoC_index = int((final_SoC - self.SoCLowerBound)/self.SoCInterval)
         for i in range(self.nDiscrt):
-            self.costF[self.k - 1][i][initial_SoC_index] = 0
+            self.costF[self.k - 1][i][final_SoC_index] = 0
 
 
     def DP_PandSoC_as_state_var(self):
@@ -92,32 +95,37 @@ class DP_calculator:
         for k in range(self.k-1,0,-1):
             self.step_to_step_calculator_P_and_SoC_state_var(k)
         # 遍历寻找初态最低的Fmass
-        outer = pd.DataFrame(data=self.SoC)
-        outer.to_csv("SoC.csv")
         outer = pd.DataFrame(data=self.costF)
         outer.to_csv("cF.csv")
-        minFC_index = -1  # 防空
+        minFC_index = [-1, -1]  # 防空
         minFC = 100  # 初始
-        for n in range(self.nDiscrt):
-            if 0<self.Fmass[0][n][self.mDiscrt - 1]<minFC:
-                minFC_index = n
-                minFC = self.Fmass[0][n][self.mDiscrt - 1]
+        for m in range(100,600):
+            for n in range(self.nDiscrt):
+                if 0<self.Fmass[0][n][m]<minFC:
+                    minFC_index = [n, m]
+                    minFC = self.Fmass[0][n][m]
 
         # 回溯正确控制
-        cursor = int(minFC_index)
+        cursor = list(minFC_index)
         self.finalPe = [0 for i in range(self.k)]
         self.finalSoC = [0 for i in range(self.k)]
         self.finalPreq = [0 for i in range(self.k)]
         self.finalFM = [0 for i in range(self.k)]
         for index in range(self.k):
             print(index)
-            self.finalPe[index] = self.PEngine[index][cursor]
-            self.finalSoC[index] = self.SoC[index][cursor]
-            self.finalPreq[index] = self.PreqFinal[index][cursor]
-            self.finalFM[index] = self.Fmass[index][cursor]
-            cursor = int(self.Proute[index][cursor])
+            self.finalPe[index] = self.PEngine[index][cursor[0]]
+            self.finalSoC[index] = self.SoC[index][cursor[1]]
+            # 计算需求功率
+            state = [self.Fmass[index][cursor[0]][cursor[1]],
+                     self.PEngine[index][cursor[0]],
+                     self.SoC[index][cursor[0]],
+                     self.costF[index][cursor[0]][cursor[1]]]
+            profile = self.profile[index]
+            self.finalPreq[index] = self.case.get_rough_Preq_sectional(state,profile)
+            self.finalFM[index] = self.Fmass[index][cursor[0]][cursor[1]]
+            cursor = self.Proute[index][cursor[0]][cursor[1]]
         return [minFC_index, minFC], [self.finalPe, self.finalPreq, self.finalFM, self.finalSoC]
-        return [minFC_index, minFC]
+
 
     # def DP_P_SoC_as_state_var(self):
     #     # 逆向计算
@@ -160,6 +168,10 @@ class DP_calculator:
             self.case.set_u_ideal(u_expect)
             self.case.set_vertical_speed(v_expect)
             # 计算
+            if k == self.k - 1:
+                cFn = self.costF[k]
+                outer = pd.DataFrame(data=cFn)
+                outer.to_csv("cFn.csv")
             self.StateUpdater_P_and_SoC_state_var(k)
             # print(self.SoC[k])
             # print(self.costF[k-1])
@@ -168,16 +180,24 @@ class DP_calculator:
         # 计算两个状态间的油量、SoC变化在ControlEffMod里进行,n是功率点的索引序号（0~140),k是当前的时间步数
         # 后向计算
         # 从状态空间中的每个状态点依次向前更新,状态空间是二维的
+        print(self.Fmass[k][1])
         for PStateIndex in range(self.nDiscrt):
             for SoCStateIndex in range(self.mDiscrt):
                 # 在二维情况下也只需要检查一个cF
                 if self.costF[k][PStateIndex][SoCStateIndex] != -1: #检查当前时间点状态点有效性
+                    if(k == self.k-1):
+                        print('initial activated SoC is '+ str(self.SoC[k][SoCStateIndex]))
                     # print("in")
                     # 确定搜索域 边界：（1）不超过发动机输出边界 （2）不使Pbat超过电池功率边界 （3）SoC不低于0（可以大于1，矫正即可） 由于总需求功率在状态量循环层未知，（2）（3）在计算层检查
-                    fowardStat = [self.Fmass[k][PStateIndex][SoCStateIndex], self.PEngine[k][PStateIndex][SoCStateIndex], self.SoC[k][PStateIndex][SoCStateIndex],
+
+                    CurrentStat = [self.Fmass[k][PStateIndex][SoCStateIndex], self.PEngine[k][PStateIndex], self.SoC[k][PStateIndex],
                                   self.costF[k][PStateIndex][SoCStateIndex]]
+                    # print(CurrentStat)
+                    fowardRecord1 = CurrentStat
+                    originFM = self.Fmass[k][PStateIndex][SoCStateIndex]
                     # 确认控制量的搜索域
-                    Preq_est = self.case.get_rough_Preq_sectional(fowardStat, profile[k-1])
+                    Preq_est = self.case.get_rough_Preq_sectional(CurrentStat, profile[k-1])
+                    fowardRecord2 = CurrentStat
 
                     # 定义安全裕量0.3
                     PbSearchWindow = 1.3
@@ -198,16 +218,32 @@ class DP_calculator:
                         # 生成Stat，格式[Fmass, Pengine, SoC, costF]
 
                         # 迭代计算前向
-                        tempStat = fowardStat
-                        recur = 2
-                        for i in range(recur):
-                            backwardStat = self.case.sectional_compt(tempStat,prePengine,self.profile[k-1],k) #暂时没有迭代
-                            tempStat[0] = 0.5*(tempStat[0] + backwardStat[0])
+                        # print('Peindex is '+str(PengineIndex))
+                        # print('Cstat is' +str(CurrentStat) )
+                        fowardRecord3 = CurrentStat
+                        tempStat = list(CurrentStat)
 
+                        recur = 2
+                        backwardStat, Preq = self.case.sectional_compt(tempStat, prePengine, self.profile[k - 1], k)
+
+                        while(recur > 0 and backwardStat[3]!= -1):
+                             #暂时没有迭代
+                            tempStat[0] = 0.5*(tempStat[0] + backwardStat[0])
+                            backwardStat, Preq = self.case.sectional_compt(tempStat, prePengine, self.profile[k - 1], k)
+                            recur = recur - 1
+
+                        if backwardStat[0]<0 and backwardStat[0] != -1:
+                            print('error')
+                            print(self.case.T)
+                            print('time sequo is' + str(k))
+                            print('stat space coord is ' + str([PStateIndex, SoCStateIndex]))
+                            print(self.case.ESC.get_ESC_power())
+                            error = 1
                         # 更新前向点, 该方法仅与输入点的值有关，与状态空间的选定无关
                         # 但需要确定一下结果检测是不是和双状态兼容
 
                         if backwardStat[3] != -1: #检查本次计算结果有没有意义
+                            # print('changed')
                             # 需要吸附到有效点,
                             priSoCIndex = (backwardStat[2] - self.SoCLowerBound)/self.SoCInterval
                             priSoCIndex = int(priSoCIndex - 0.5) # 四舍五入取整
@@ -232,11 +268,43 @@ class DP_calculator:
 
                                 # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))
                                 # print(self.costF[k - 1])
-
+            print('PE ITER '+ str(PStateIndex) + ' finished')
         print("finished step: "+str(k)+" current Fmass is ")
         # print(self.SoC[k - 1])
         # --print(self.Fmass[k-1])
 
+    def export_slices(self):
+        mF0 = self.Fmass[0]
+        outer = pd.DataFrame(data=mF0)
+        outer.to_csv("mF0.csv")
+        mF30 = self.Fmass[30]
+        outer = pd.DataFrame(data=mF30)
+        outer.to_csv("mF30.csv")
+        mF50 = self.Fmass[50]
+        outer = pd.DataFrame(data=mF50)
+        outer.to_csv("mF50.csv")
+        mF70 = self.Fmass[70]
+        outer = pd.DataFrame(data=mF70)
+        outer.to_csv("mF70.csv")
+        mF90 = self.Fmass[90]
+        outer = pd.DataFrame(data=mF90)
+        outer.to_csv("mF90.csv")
+
+        SoC0 = self.SoC[0]
+        outer = pd.DataFrame(data=SoC0)
+        outer.to_csv("SoC0.csv")
+        SoC30 = self.SoC[30]
+        outer = pd.DataFrame(data=SoC30)
+        outer.to_csv("SoC30.csv")
+        SoC50 = self.SoC[50]
+        outer = pd.DataFrame(data=SoC50)
+        outer.to_csv("SoC50.csv")
+        SoC70 = self.SoC[70]
+        outer = pd.DataFrame(data=SoC70)
+        outer.to_csv("SoC70.csv")
+        SoC90 = self.SoC[90]
+        outer = pd.DataFrame(data=SoC90)
+        outer.to_csv("SoC90.csv")
     # def init_state_sticker(self,k):
     #     if k!=1:
     #         print("wrong call")
@@ -286,11 +354,28 @@ print('--rotyor number is' + str(flight.case.n))
 
 profile = profile_reader()
 # print(profile)
-test = DP_calculator(profile,flight.case)
-test.set_NO_of_discetized_P(141)
+test = DP_calculator_withSoC(profile,flight.case)
+# test.set_NO_of_discetized_P(141)
 # test.set_initial_values_of_SoC(0.3)
-test.set_final_state(0.3,0)
-result = test.DP_P_as_state_var()
+test.set_finaL_values_of_SoC(0.3)
+result,optCtrl = test.DP_PandSoC_as_state_var()
 print(result)
-print()
+test.export_slices()
+plt.figure(4)
+#plt.plot( Hf_t, miu_motor)
+plt.subplot(2,1,1)
+t = [i*5 for i in range(test.k)]
+plt.plot(t, optCtrl[0], label = 'PGE')
+#plt.plot(t, average_P_GE, "r--", label = 'Averaged GE Power')
+plt.plot(t, optCtrl[1],"red", label = 'preq')
+plt.ylabel(r"功率 /W")
+plt.legend(loc=0,ncol=1,fontsize=14)
+plt.subplot(2,1,2)
+plt.plot(t, optCtrl[3], label = 'SoC')
+plt.ylabel('SoC')
+plt.xlabel('时间 /s')
+plt.show()
+outer = pd.DataFrame(data=optCtrl)
+outer.to_csv("optDP.csv")
+
 

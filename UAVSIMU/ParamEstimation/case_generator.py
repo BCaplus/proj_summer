@@ -218,7 +218,7 @@ class FlightProfileGenerator:
             self.profile.append([t, h, u, v, flightmode, hfmode, wspeed])
 
 
-    def wind_speed_generator(self,average_windspeed, c_period = 80, mc_period = 1000):
+    def wind_speed_generator(self,average_windspeed, c_period = 10, mc_period = 80):
         average_wind = average_windspeed
         check_period = c_period
         max_change_periord = mc_period
@@ -239,11 +239,20 @@ class FlightProfileGenerator:
         outer = pd.DataFrame(data=self.profile)
         outer.to_csv("profile.csv")
 
+    def plot_w_curve(self):
+        t = [self.profile[i][0] for i in range(len(self.profile))]
+        w = [self.profile[i][6] for i in range(len(self.profile))]
+        print(w)
+        plt.figure(2)
+        plt.plot(t,w)
+        plt.show()
+
 # test = FlightProfileGenerator(5)
 # test.add_climb(200,100)
 # test.add_hflight(6,400,w_on=1,w=10)
+# test.plot_w_curve()
 # test.export_profile()
 
-test2 = Flight(4,63,12,900)
-test2.set_plane()
-print(test2.cd1)
+# test2 = Flight(4,63,12,900)
+# test2.set_plane()
+# print(test2.cd1)

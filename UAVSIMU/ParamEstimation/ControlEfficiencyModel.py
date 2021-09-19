@@ -372,9 +372,16 @@ class static_model:
             weight_backward = weight_initial + wfuel*self.dt #单位为kg【待检查】
             Fmass_backward = Fmass_initial + wfuel*self.dt
 
+
             SoC_backward = SoC_initial + P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
-            # --print(SoC_backward)
-            # --print("pBat is " + str(P_bat) + "SoC is" + str(SoC_backward))
+            # if P_bat>3:
+            #     print(SoC_initial)
+            #     print(SoC_backward)
+            #     print(P_bat)
+            #     print(self.powerSys.Ub)
+            #     print(self.powerSys.capacity)
+            #     print(SoC_initial - SoC_backward)
+            #     print("pBat is " + str(P_bat) + "SoC is" + str(SoC_backward))
             # SoC可用性检查
             if SoC_backward > 0:
                 Ub = self.Ub #电池电压 同时也当开路电压用 假装有个效率1的变压器

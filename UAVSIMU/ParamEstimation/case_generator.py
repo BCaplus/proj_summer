@@ -248,8 +248,8 @@ class FlightProfileGenerator:
         plt.show()
 
 # test = FlightProfileGenerator(5)
-# test.add_climb(200,100)
-# test.add_hflight(6,400,w_on=1,w=10)
+# test.add_climb(50,50)
+# test.add_hflight(8,200,w_on=1,w=15)
 # test.plot_w_curve()
 # test.export_profile()
 

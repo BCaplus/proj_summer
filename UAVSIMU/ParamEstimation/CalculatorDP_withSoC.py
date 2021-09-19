@@ -50,6 +50,11 @@ class DP_calculator_withSoC:
         self.SoCInterval = (self.SoCUpperBound - self.SoCLowerBound)/(self.mDiscrt - 1)
         # 设计离散时取整除，因此这里不做截断误差检查
 
+
+        #调试参数
+        self.SoC_max_increase_sequence=[]
+
+        #初始化
         self.initialization()
 
 
@@ -181,6 +186,8 @@ class DP_calculator_withSoC:
         # 后向计算
         # 从状态空间中的每个状态点依次向前更新,状态空间是二维的
         print(self.Fmass[k][1])
+        max_SoC_swap = 0
+        SoC_k = 0
         for PStateIndex in range(self.nDiscrt):
             for SoCStateIndex in range(self.mDiscrt):
                 # 在二维情况下也只需要检查一个cF
@@ -264,11 +271,16 @@ class DP_calculator_withSoC:
                                     self.Fmass[k - 1][PengineIndex][priSoCIndex] = backwardStat[0]
                                     self.costF[k - 1][PengineIndex][priSoCIndex] = backwardStat[3]
                                     self.Proute[k - 1][PengineIndex][priSoCIndex] = [PStateIndex, SoCStateIndex]
+                                    if self.SoC[priSoCIndex]>max_SoC_swap:
+                                        max_SoC_swap = self.SoC[priSoCIndex]
+                                        SoC_k = self.SoC[SoCStateIndex]
+
 
 
                                 # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))
                                 # print(self.costF[k - 1])
             print('PE ITER '+ str(PStateIndex) + ' finished')
+        self.SoC_max_increase_sequence.append([max_SoC_swap,SoC_k])
         print("finished step: "+str(k)+" current Fmass is ")
         # print(self.SoC[k - 1])
         # --print(self.Fmass[k-1])
@@ -277,34 +289,42 @@ class DP_calculator_withSoC:
         mF0 = self.Fmass[0]
         outer = pd.DataFrame(data=mF0)
         outer.to_csv("mF0.csv")
-        mF30 = self.Fmass[30]
-        outer = pd.DataFrame(data=mF30)
-        outer.to_csv("mF30.csv")
-        mF50 = self.Fmass[50]
-        outer = pd.DataFrame(data=mF50)
-        outer.to_csv("mF50.csv")
-        mF70 = self.Fmass[70]
-        outer = pd.DataFrame(data=mF70)
-        outer.to_csv("mF70.csv")
-        mF90 = self.Fmass[90]
-        outer = pd.DataFrame(data=mF90)
-        outer.to_csv("mF90.csv")
-
         SoC0 = self.SoC[0]
         outer = pd.DataFrame(data=SoC0)
         outer.to_csv("SoC0.csv")
-        SoC30 = self.SoC[30]
-        outer = pd.DataFrame(data=SoC30)
-        outer.to_csv("SoC30.csv")
-        SoC50 = self.SoC[50]
-        outer = pd.DataFrame(data=SoC50)
-        outer.to_csv("SoC50.csv")
-        SoC70 = self.SoC[70]
-        outer = pd.DataFrame(data=SoC70)
-        outer.to_csv("SoC70.csv")
-        SoC90 = self.SoC[90]
-        outer = pd.DataFrame(data=SoC90)
-        outer.to_csv("SoC90.csv")
+        if self.k>30:
+            mF30 = self.Fmass[30]
+            outer = pd.DataFrame(data=mF30)
+            outer.to_csv("mF30.csv")
+            SoC30 = self.SoC[30]
+            outer = pd.DataFrame(data=SoC30)
+            outer.to_csv("SoC30.csv")
+        if self.k > 50:
+            mF50 = self.Fmass[50]
+            outer = pd.DataFrame(data=mF50)
+            outer.to_csv("mF50.csv")
+            SoC50 = self.SoC[50]
+            outer = pd.DataFrame(data=SoC50)
+            outer.to_csv("SoC50.csv")
+        if self.k > 70:
+            mF70 = self.Fmass[70]
+            outer = pd.DataFrame(data=mF70)
+            outer.to_csv("mF70.csv")
+            SoC70 = self.SoC[70]
+            outer = pd.DataFrame(data=SoC70)
+            outer.to_csv("SoC70.csv")
+        if self.k > 90:
+            mF90 = self.Fmass[90]
+            outer = pd.DataFrame(data=mF90)
+            outer.to_csv("mF90.csv")
+            SoC90 = self.SoC[90]
+            outer = pd.DataFrame(data=SoC90)
+            outer.to_csv("SoC90.csv")
+
+
+
+
+
     # def init_state_sticker(self,k):
     #     if k!=1:
     #         print("wrong call")
@@ -374,8 +394,14 @@ plt.subplot(2,1,2)
 plt.plot(t, optCtrl[3], label = 'SoC')
 plt.ylabel('SoC')
 plt.xlabel('时间 /s')
+
 plt.show()
 outer = pd.DataFrame(data=optCtrl)
 outer.to_csv("optDP.csv")
+
+SoCINcre = pd.DataFrame(data = test.SoC_max_increase_sequence)
+outer.to_csv(("SOcINCRE.csv"))
+
+
 
 

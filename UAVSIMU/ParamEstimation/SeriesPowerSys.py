@@ -48,8 +48,8 @@ class SHPS:
         return wfuel
 
     def get_optFC_P(self,P): #注意，P的单位是kW
-        FC = self.ecms.opt_search(P)
-        wfuel = FC*(P/1000)/3600
+        FC = self.ecms.opt_search(P)/1000 #单位是kg
+        wfuel = FC*P/3600 #单位是kg/s
         return wfuel, FC
 
     def ECMS_RULE(self, Ib):

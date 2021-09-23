@@ -75,6 +75,8 @@ class static_model:
         # 监视器
         self.flight_stat = [[0, 0, MaxFuelMass, 0, 0, 1, 0, 0]] # u,v,fuelmass,distance,h,soc,P_demand,P_ICE_output
         self.Bat_stat = [[0, 0]]
+        test = self.powerSys.get_optFC_P(14.8)
+        print("test P is" + str(test))
 
 
 
@@ -104,13 +106,16 @@ class static_model:
 
 
             self.T = -F_d + self.total_weight * self.g
+
+        ratio = F_d/self.T
+
+        #print(str(self.wind_speed)+' '+str(F_d)+""+str(Cd)+""+str(self.v))
         #print([self.T, self.v])
 
     def update_propeller(self):
         self.__update_rho()
         self.prop.update(self.T/self.n, self.rho)
-    def set_wind(self,windspeed):
-        self.wind_speed = windspeed
+
 
 
     def update_motor(self):
@@ -225,8 +230,25 @@ class static_model:
         temp = self.prop.get_P()/self.motor.get_MotorP()
         return temp
 
+
+
+        # 外部设置飞行参数接口
+
+
     def set_T(self, T):
         self.T = T
+
+    def set_wind(self, windspeed):
+        self.wind_speed = windspeed
+        #print("wind_set "+str(self.wind_speed))
+
+    def set_flight_mode(self, flightmode):
+        self.FlightStat = flightmode
+
+    def set_HF_mode(self, HFmode):
+        self.HFlightMode = HFmode
+
+        # 结束
 
     def update(self,wind = 0, mode = 0, T_out = 0):
         self.__update_rho()
@@ -262,6 +284,8 @@ class static_model:
     def update_ECMS(self,wind = 0):
         self.__update_rho()
         self.update_weight()
+
+        # wind=1 随机影响 2 剖面给定 0 无
         if wind == 1:
             self.combined_wind(10)
         elif wind == 0:
@@ -327,7 +351,7 @@ class static_model:
             self.wind_counter+=self.dt
 
 
-    def sectional_compt(self, initial_state, Pengine_backward, profile, k, recur = 5):
+    def sectional_compt(self, initial_state, Pengine_backward, recur = 5, mid_print = 0):
         # profile的格式：[t h u v flightmode hfmode wspeed]
 
         #测试时手动设置，也可来自于发动机运行曲线搜索
@@ -336,25 +360,21 @@ class static_model:
         Hf_coefficient  = Hfuel #暂时不调参
 
         # stat的格式[Fmass, Pengine, SoC, costF]
-        wspeed = profile[6]
-        self.set_wind(wspeed)
-        hfMode = int(profile[5])
-        flightMode = int(profile[4]) #取值 0：上升或下降（取决于v的值） 1：平飞
+
         Fmass_initial = initial_state[0]
         weight_initial = initial_state[0]+self.dry_weight
         SoC_initial = initial_state[2]
         costF_initial = initial_state[3]
+        self.u = self.u_ideal
         self.total_weight = weight_initial
-        self.FlightStat = flightMode
         self.update_T()
-        self.u = profile[2]
-        self.v = profile[3]
         self.update_propeller()
         self.update_motor()
         Pengine = Pengine_backward
         P_req = self.ESC.get_ESC_power() # 单位是W
         P_bat = P_req/1000 - Pengine
         max_P_bat = self.powerSys.Ibmax * self.powerSys.Ub / 1000 #单位是kW
+        # print("max_P_bat is" + str(max_P_bat))
         # 检查搜索可行性应该在外部做 这里进行一个电池最大功率的保险和SoC越界的检查
         # SoC可用性应该在外面做
         # --print ("PB max is"+str(max_P_bat) + " Pe is "+str(Pengine) + " Preq is" + str(P_req))
@@ -364,6 +384,9 @@ class static_model:
             # for i in range(recur):
             #     #迭代求SoC
             wfuel, reducedFC = self.get_FC_by_P(Pengine) #还需要查比油耗
+            # rFC 单位是g
+            # print("rFC "+str(reducedFC)+" wF " +str(wfuel)+" "+str(Pengine))
+            # print("Pengine is"+str(Pengine))
             if wfuel<0:
                 error_fuel = wfuel
                 error_T = self.T
@@ -373,15 +396,17 @@ class static_model:
             Fmass_backward = Fmass_initial + wfuel*self.dt
 
 
+
             SoC_backward = SoC_initial + P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
-            # if P_bat>3:
-            #     print(SoC_initial)
-            #     print(SoC_backward)
-            #     print(P_bat)
-            #     print(self.powerSys.Ub)
-            #     print(self.powerSys.capacity)
-            #     print(SoC_initial - SoC_backward)
-            #     print("pBat is " + str(P_bat) + "SoC is" + str(SoC_backward))
+
+            if  Pengine == 7.0 and 0.144<SoC_backward<0.145:
+                print(SoC_initial)
+                print(SoC_backward)
+                print(P_bat)
+                print(self.powerSys.Ub)
+                print(self.powerSys.capacity)
+                print(SoC_initial - SoC_backward)
+                print("pBat is " + str(P_bat) + "SoC is" + str(SoC_backward))
             # SoC可用性检查
             if SoC_backward > 0:
                 Ub = self.Ub #电池电压 同时也当开路电压用 假装有个效率1的变压器
@@ -419,18 +444,18 @@ class static_model:
 
     def get_rough_Preq_sectional(self, initial_state, profile):
         # 输入飞行信息
-        wspeed = profile[6]
+        wspeed = profile[7]
         self.set_wind(wspeed)
-        hfMode = int(profile[5])
-        flightMode = int(profile[4])  # 取值 0：上升或下降（取决于v的值） 1：平飞
+        hfMode = int(profile[6])
+        flightMode = int(profile[5])  # 取值 0：上升或下降（取决于v的值） 1：平飞
         weight_initial = initial_state[0] + self.dry_weight
         SoC_initial = initial_state[2]
         self.total_weight = weight_initial
         self.FlightStat = flightMode
         self.HFlightMode = hfMode
         self.update_T()
-        self.u = profile[2]
-        self.v = profile[3]
+        self.u = profile[3]
+        self.v = profile[4]
         self.update_propeller()
         self.update_motor()
         PreqRough = self.ESC.get_ESC_power() # 单位是w，转换为kW

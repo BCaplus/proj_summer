@@ -185,18 +185,23 @@ class OptimumFC:
         return C_opt
 
     def get_Opt_FC_DOUBLE_Interp(self, P):
+        cursor = 0
+        while   cursor<len(self.FC_opt[0]) and self.FC_opt[0][cursor] < P:
+            cursor += 1
         if self.P_lowerbound<P<self.P_upbound:
-
-            cursor = 0
-            while self.FC_opt[0][cursor]<P:
-                cursor += 1
+            #print("P_upbound is " + str(self.P_upbound))
 
             temp = self.FC_opt[1][cursor]*(P - self.FC_opt[0][cursor-1])+self.FC_opt[1][cursor-1]*(self.FC_opt[0][cursor] - P)
             temp = temp/(self.FC_opt[0][cursor]-self.FC_opt[0][cursor-1])
-            return temp
-        else :
+
+        elif P<=1.1*self.P_upbound:
+            cursor = cursor - 1
+            temp = (self.FC_opt[1][cursor] - self.FC_opt[1][cursor - 1])*(P - self.FC_opt[0][cursor])
+            temp = temp / (self.FC_opt[0][cursor] - self.FC_opt[0][cursor - 1]) + self.FC_opt[1][cursor]
+        else:
             print("P need out of range")
-            return -1
+            temp = -1
+        return temp
 
     def fit_interp(self,x, yn):
         z = np.polyfit(yn[:,0], yn[:,1],13)

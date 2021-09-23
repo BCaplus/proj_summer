@@ -24,7 +24,6 @@ Ub = 60 #动力电路电压 [V]
 Height = 200 #定高飞行
 Height_2nd = 700
 theta = 5
-t = [0]
 max_P = 0
 
 airdyn_param = [cd1, cd2]
@@ -44,6 +43,8 @@ class Flight:
         self.dt = dt
         self.T = 0
         self.n = 4
+        self.time_sequence = [0]
+        self.initial_SoC = 1
 
         # 机体参数
         self.plane_param = [4, 0.4, 1] #Parameters in [S cd1 cd2]
@@ -59,17 +60,24 @@ class Flight:
     def set_dt(self, dt):
         self.dt = dt
 
+    def set_initial_SoC(self, initSoC):
+        self.initial_SoC = initSoC
+
     def set_initial_fuel(self, max_fuel):
         self.max_fuel_mass = max_fuel
 
     def set_capacity(self,capacity):
         self.capacity = capacity
 
-    def load_profile(self, profile):
-        path = os.getcwd() + '\\profile.csv'
-        f = open(path, encoding='utf-8')
-        data = pd.read_csv(f)
-        self.profile = data #格式：[t, h, u, v, flightmode, hfmode, wspeed]
+    def load_profile(self, profile = []):
+        if not profile:
+            path = os.getcwd() + '\\profile.csv'
+            f = open(path, encoding='utf-8')
+            data = pd.read_csv(f)
+            self.profile = data #格式：[t, h, u, v, flightmode, hfmode, wspeed]
+        else:
+            self.profile = profile
+
 
     def set_plane(self):
         raw = xlrd.open_workbook("plane_data.xls")
@@ -114,8 +122,66 @@ class Flight:
                 self.ESC_param[1] = float(row[1])
 
 
-        temp = static_model(self.plane_param[2], self.plane_param[0], self.plane_param[1], self.dryweight, self.max_fuel_mass, self.dt, self.capacity, self.ESC_param[0], n=self.n)
+        temp = static_model(self.plane_param[2], self.plane_param[0], self.plane_param[1], self.dryweight, self.max_fuel_mass, self.dt, self.capacity, self.ESC_param[0], n=self.n,SoC=self.initial_SoC)
         self.case = temp
+
+    def simu_ECMS(self):
+        # profile[index t h v u flightmode hfmode wspeed]
+        for k in range(len(self.profile)):
+            if self.profile[k][5] == 1:
+                self.case.set_flight_mode(self.profile[k][5])
+                self.case.set_HF_mode(self.profile[k][6])
+                self.case.set_wind(self.profile[k][7])
+                self.case.set_u_ideal(self.profile[k][4])
+                self.case.update_ECMS(wind = 2)
+                self.time_sequence.append(self.case.t)
+            else:
+                print('in case vertical')
+                self.case.set_flight_mode(self.profile[k][5])
+                self.case.set_wind(self.profile[k][7])
+                self.case.set_vertical_speed(self.profile[k][3])
+                self.case.update_ECMS(wind = 2)
+                self.time_sequence.append(self.case.t)
+
+        print("fuel left "+ str(self.case.powerSys.get_fuelmass()))
+        return self.case.get_flight_stat(), self.case.get_Bat_stat()
+
+    def plot_flight_stat(self,flight_stat,t, t_excess = 50):
+        plt.rcParams['savefig.dpi'] = 300
+
+        plt.rcParams['figure.dpi'] = 300
+
+        config = {
+            "font.family": 'serif',
+            "font.size": 16,
+            "mathtext.fontset": 'stix',
+            "font.serif": ['SimSun'],
+        }
+
+        SoC = [item[5] for item in flight_stat]
+        P_need = [item[6] for item in flight_stat]
+        P_GE = [item[7] for item in flight_stat]
+
+
+        plt.figure(1)
+        # plt.plot( Hf_t, miu_motor)
+        plt.subplot(2, 1, 1)
+        plt.plot(t, P_GE, label='发动机输出功率')
+        # plt.plot(t, average_P_GE, "r--", label = 'Averaged GE Power')
+        plt.plot(t, P_need, "red", label='功率需求')
+        plt.ylabel(r"功率 /W")
+        plt.ylim(0, 16000)
+        plt.xlim(0, self.case.t + t_excess)
+        plt.legend(loc=0, ncol=1, fontsize=14)
+        plt.subplot(2, 1, 2)
+        plt.plot(t, SoC, label='SoC')
+        plt.ylabel('SoC')
+        plt.xlabel('时间 /s')
+        plt.ylim(0.25, 0.35)
+        plt.xlim(0, self.case.t + t_excess)
+        plt.show()
+
+
 
 
 
@@ -168,7 +234,7 @@ class FlightProfileGenerator:
             v = 0
             hfmode = 0
             if w_on:
-                wspeed = self.wind_speed_generator(w)#
+                self.wind_speed_generator(w)#
                 wspeed = self.wind_speed
                 self.wind_counter += self.dt
             else:
@@ -189,7 +255,7 @@ class FlightProfileGenerator:
             v = v
             hfmode = 1
             if w_on:
-                wspeed = self.wind_speed_generator(w)#
+                self.wind_speed_generator(w)#
                 wspeed = self.wind_speed
                 self.wind_counter += self.dt
             else:
@@ -210,7 +276,7 @@ class FlightProfileGenerator:
             v = 0
             hfmode = 0
             if w_on:
-                wspeed = self.wind_speed_generator(w)#
+                self.wind_speed_generator(w)#
                 wspeed = self.wind_speed
                 self.wind_counter += self.dt
             else:
@@ -222,7 +288,7 @@ class FlightProfileGenerator:
         average_wind = average_windspeed
         check_period = c_period
         max_change_periord = mc_period
-        sigma = 5
+        sigma = 1
         if self.wind_counter % check_period == 0 and self.wind_counter > 0:
             # print("check="+str(self.wind_counter%check_period))
             temp = (max_change_periord - self.wind_counter) / max_change_periord
@@ -230,10 +296,14 @@ class FlightProfileGenerator:
             if random_f > 0.5:
                 self.wind_counter = 0
                 temp = random.gauss(average_wind, sigma)
-                temp = temp - average_wind
+                temp = (temp - average_wind)*average_wind
                 if temp > 1.2 * average_wind:
-                    temp = average_wind
+                    temp = 1.22*average_wind
+                elif temp < -1.2 * average_wind:
+                    temp = -1.2*average_wind
                 self.wind_speed = temp
+
+
 
     def export_profile(self):
         outer = pd.DataFrame(data=self.profile)
@@ -248,8 +318,8 @@ class FlightProfileGenerator:
         plt.show()
 
 # test = FlightProfileGenerator(5)
-# test.add_climb(50,50)
-# test.add_hflight(8,200,w_on=1,w=15)
+# test.add_climb(50,50,w_on=1,w=8)
+# test.add_hflight(8,200,w_on=1,w=8)
 # test.plot_w_curve()
 # test.export_profile()
 

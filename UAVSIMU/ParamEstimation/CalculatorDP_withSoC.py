@@ -433,6 +433,8 @@ outer.to_csv("optDP.csv")
 
 SoCINcre = pd.DataFrame(data = test.SoC_max_increase_sequence)
 SoCINcre.to_csv("SOcINCRE.csv")
+print(a)
+#version ontol
 
 
 

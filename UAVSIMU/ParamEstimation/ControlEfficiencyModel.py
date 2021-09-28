@@ -396,7 +396,6 @@ class static_model:
             Fmass_backward = Fmass_initial + wfuel*self.dt
 
 
-
             SoC_backward = SoC_initial + P_bat*self.dt*1000/(self.powerSys.Ub*self.powerSys.capacity) #capacity单位[A*s]
 
             if  Pengine == 7.0 and 0.144<SoC_backward<0.145:
@@ -428,13 +427,11 @@ class static_model:
                 costF_backward = -1  # 用-1表示不可到达（在更新时也要检查，注意costF原本为负时可以用新的正值来覆盖）
                 SoC_backward = -1
                 Fmass_backward = -1
-                Pengine = Pengine_backward
         else:
             # --print('case2')
             costF_backward = -1 #用-1表示不可到达（在更新时也要检查，注意costF原本为负时可以用新的正值来覆盖）
             SoC_backward = -1
             Fmass_backward = -1
-            Pengine = Pengine_backward
 
         return [Fmass_backward,Pengine_backward,SoC_backward,costF_backward], P_req/1000
         # 暂且写成这样

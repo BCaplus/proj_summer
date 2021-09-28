@@ -46,7 +46,7 @@ class DP_calculator_withSoC:
         # 离散状态空间写在这里
         self.PLowerBound  = 1 #kW
         self.PUpperBound = 15 #kW
-        self.nDiscrt = 141
+        self.nDiscrt = 29
         self.PInterval = (self.PUpperBound - self.PLowerBound)/(self.nDiscrt  - 1)
 
         # 离散SoC
@@ -264,12 +264,18 @@ class DP_calculator_withSoC:
                             # print('changed')
                             # 需要吸附到有效点,
                             priSoCIndex = (backwardStat[2] - self.SoCLowerBound)/self.SoCInterval
-                            priSoCIndex = int(priSoCIndex - 0.5) # 四舍五入取整
 
+                            priSoCIndex = int(priSoCIndex + 0.5) # 四舍五入取整
                             if self.costF[k - 1][PengineIndex][priSoCIndex] == -1:
 
                                 # if PengineIndex%10 == 0:
                                 # print('init cF case')
+
+                                # if Preq>prePengine:
+                                #     print("selected scenario Preq " + str(Preq))
+                                #     print("Peng " + str(self.PEngine[k-1][PengineIndex]))
+                                #     print("delta SOc k - k_-1" + str(CurrentStat[2] - self.SoC[k-1][priSoCIndex]))
+
                                 self.costF[k - 1][PengineIndex][priSoCIndex] = backwardStat[3]
                                 self.Fmass[k - 1][PengineIndex][priSoCIndex] = backwardStat[0]
                                 self.P_req[k - 1][PengineIndex][priSoCIndex] = Preq
@@ -278,13 +284,13 @@ class DP_calculator_withSoC:
                                 #     max_SoC_swap = self.SoC[k - 1][priSoCIndex]
                                 #     SoC_k = self.SoC[k][SoCStateIndex]
                                 # debug 输出
-                                if PengineIndex >135:
-                                    # print("backword STATIS " + str(backwardStat))
-                                    # print("over charge priSoC is " + str(self.SoC[k - 1][priSoCIndex]) +
-                                    #       "curretn SoC is " + str(self.SoC[k][SoCStateIndex]) + "P_bat is" + str(
-                                    #     self.case.ESC.get_ESC_power() / 1000 - self.PEngine[k][PengineIndex]))
-                                    print("limit Pen" + str(self.PEngine[k-1][PengineIndex]))
-                                    print("wfuel" + str(self.Fmass[k - 1][PengineIndex][priSoCIndex] - self.Fmass[k][PStateIndex][SoCStateIndex]))
+                                # if PengineIndex >135:
+                                #     # print("backword STATIS " + str(backwardStat))
+                                #     # print("over charge priSoC is " + str(self.SoC[k - 1][priSoCIndex]) +
+                                #     #       "curretn SoC is " + str(self.SoC[k][SoCStateIndex]) + "P_bat is" + str(
+                                #     #     self.case.ESC.get_ESC_power() / 1000 - self.PEngine[k][PengineIndex]))
+                                #     print("limit Pen" + str(self.PEngine[k-1][PengineIndex]))
+                                #     print("wfuel" + str(self.Fmass[k - 1][PengineIndex][priSoCIndex] - self.Fmass[k][PStateIndex][SoCStateIndex]))
                             else:
                                 # 优化目标是油量
                                 if backwardStat[0] < self.Fmass[k - 1][PengineIndex][priSoCIndex]:
@@ -299,11 +305,11 @@ class DP_calculator_withSoC:
                                         max_SoC_swap = self.SoC[k-1][priSoCIndex]
                                         SoC_k = self.SoC[k][SoCStateIndex]
                                     # debug 输出
-                                    if PengineIndex>135:
-                                        print("limit Pen" + str(self.PEngine[k - 1][PengineIndex]))
-                                        print("wfuel" + str(
-                                            self.Fmass[k - 1][PengineIndex][priSoCIndex] - self.Fmass[k][PStateIndex][
-                                            SoCStateIndex]))
+                                    # if PengineIndex>135:
+                                    #     print("limit Pen" + str(self.PEngine[k - 1][PengineIndex]))
+                                    #     print("wfuel" + str(
+                                    #         self.Fmass[k - 1][PengineIndex][priSoCIndex] - self.Fmass[k][PStateIndex][
+                                    #         SoCStateIndex]))
 
 
                                 # print('swap case NEW CF IS ' + str(self.costF[k - 1][PengineIndex]))

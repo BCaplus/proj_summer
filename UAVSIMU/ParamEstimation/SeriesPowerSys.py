@@ -14,6 +14,7 @@ class SHPS:
         self.Imax = Param[0]
         self.Gshps = Param[1]
         self.capacity = capacity*3600/Ub #转换后单位 [As]
+        print('capacity is '+str(self.capacity))
         self.SoC = SoC
         self.fuelMass = InitFuelMass
         self.dt = dt

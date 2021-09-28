@@ -284,7 +284,7 @@ class FlightProfileGenerator:
             self.profile.append([t, h, u, v, flightmode, hfmode, wspeed])
 
 
-    def wind_speed_generator(self,average_windspeed, c_period = 10, mc_period = 80):
+    def wind_speed_generator(self,average_windspeed, c_period = 40, mc_period = 120):
         average_wind = average_windspeed
         check_period = c_period
         max_change_periord = mc_period
@@ -317,11 +317,13 @@ class FlightProfileGenerator:
         plt.plot(t,w)
         plt.show()
 
-# test = FlightProfileGenerator(5)
-# test.add_climb(50,50,w_on=1,w=8)
-# test.add_hflight(8,200,w_on=1,w=8)
-# test.plot_w_curve()
-# test.export_profile()
+test = FlightProfileGenerator(5)
+test.add_climb(500,200,w_on=1,w=5)
+test.add_hflight(8,500,w_on=0)
+test.add_climb(500,200,w_on=1,w=5)
+# test.add_hflight(6,1200,w_on=1,w=5)
+test.plot_w_curve()
+test.export_profile()
 
 # test2 = Flight(4,63,12,900)
 # test2.set_plane()

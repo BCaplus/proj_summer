@@ -122,7 +122,7 @@ class ESC:
         return self.Ie_net*self.Ue
 
     def get_ESC_weight(self):
-        return n*self.Ge
+        return self.n*self.Ge
 
     def set_Ub(self, Ub):
         self.Ub = Ub

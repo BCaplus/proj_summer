@@ -154,6 +154,8 @@ class SHPS:
         self.FC = temp[0] /3600000
         self.reduced_FC = temp[0]/temp[1]
 
+    # def update_GIVEN_P(self, Pengine):
+
     def get_weight(self):
         return self.fuelMass + self.Gshps
 

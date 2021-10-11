@@ -34,7 +34,7 @@ def profile_reader():
     return profile
 
 flight = Flight(S,dry_weight,max_fuel_mass,capacity,dt = dt)
-flight.set_initial_fuel(5)
+flight.set_initial_fuel(2)
 flight.set_initial_SoC(0.304)
 flight.set_plane()
 profile = profile_reader()

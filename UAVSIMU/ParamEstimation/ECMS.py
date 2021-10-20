@@ -110,7 +110,7 @@ class FuelManagement:
         if P_ice<5:
             print("low p_ice " +str([P_ice, search_range[0],search_range[1], Pnet]))
             print(F_monitor)
-        print([F_ICE, F_E])
+        # print([F_ICE, F_E])
         return [F, P_ice, P_em]
 
     def split_test(self):

@@ -19,7 +19,7 @@ Gp = 0.01 #旋翼重量 （没什么用）
 
 class static_model:
 
-    def __init__(self, S, cd1, cd2, dry_weight, MaxFuelMass, dt, capacity, Ub, max_ge_power = 15000,EnergyDensity = 300,  n = 6, SoC = 1, local_g = 9.81, theta = 0, tem = 20):
+    def __init__(self, S, cd1, cd2, dry_weight, MaxFuelMass, dt, capacity, Ub, max_ge_power = 15000,EnergyDensity = 200,  n = 6, SoC = 1, local_g = 9.81, theta = 0, tem = 20):
         self.S = S
         self.cd1 = cd1
         self.cd2 = cd2
@@ -92,7 +92,7 @@ class static_model:
         self.total_weight = self.powerSys.get_fuelmass() + self.dry_weight
         #print(self.powerSys.get_fuelmass())
 
-    def update_T(self):
+    def update_T(self, print_switch = 0):
         Cd = self.fly.get_Cd()
         F_d = 0.5 * Cd * self.rho * (self.v + self.wind_speed) ** 2 * self.S
         if self.FlightStat == 1:
@@ -110,6 +110,8 @@ class static_model:
             self.T = -F_d + self.total_weight * self.g
 
         ratio = F_d/self.T
+        if print_switch == 1:
+            print("T calc inspection, Fmode is " + str(self.FlightStat)+" v is " + str(self.v))
 
         #print(str(self.wind_speed)+' '+str(F_d)+""+str(Cd)+""+str(self.v))
         #print([self.T, self.v])
@@ -197,6 +199,9 @@ class static_model:
     def set_vertical_speed(self, v):
         self.v = v
 
+    def set_height(self,h):
+        self.h = h
+
     def update_theta(self):
         alpha = 0.002
         beta = 0.002
@@ -218,6 +223,7 @@ class static_model:
         tan_ideal_theta = self.u_ideal**2*self.rho*self.S*Cd/(2*self.total_weight*self.g)
         ideal_theta = math.atan(tan_ideal_theta)
         self.q = P*(ideal_theta - self.theta)
+
 
     def set_u_ideal(self, u_ideal):
         self.u_ideal = u_ideal
@@ -302,6 +308,7 @@ class static_model:
             self.combined_wind(10)
         elif wind == 0:
             self.wind_cease()
+        self.theta = 0 # 仅为测试用，记得删掉
         self.update_T()
         self.update_propeller()
         self.update_motor()
@@ -324,7 +331,7 @@ class static_model:
              self.ESC.get_ESC_power(), self.powerSys.get_ge_power()])
         self.Bat_stat.append([self.powerSys.get_Bat_heat(), self.powerSys.get_I_bat()])
 
-        print("ecms+" + str([self.T, self.theta]))
+        # print("ecms+" + str([self.T, self.theta]))
 
     def update_ECMS_dynamic(self, u, v, flight_mode):
         self.__update_rho()
@@ -362,6 +369,12 @@ class static_model:
         else:
             self.wind_counter+=self.dt
 
+    def get_ideal_theta(self, recur = 3):
+        for i in range(recur):
+            Cd = self.fly.get_Cd()
+            ideal_theta = self.u_ideal ** 2 * self.rho * self.S * Cd / (2 * self.total_weight * self.g)
+            self.fly.set_theta(ideal_theta)
+        return ideal_theta
 
     def sectional_compt(self, initial_state, Pengine_backward, recur = 3, mid_print = 0):
         # profile的格式：[t h u v flightmode hfmode wspeed]
@@ -393,9 +406,11 @@ class static_model:
 
         # 根据质量更新功率需求
         self.total_weight = weight_backward
+        self.theta = self.get_ideal_theta()
         self.update_T()
         self.update_propeller()
         self.update_motor()
+
 
         # 计算SoC变化
         P_req = self.ESC.get_ESC_power() # 单位是W

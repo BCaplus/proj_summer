@@ -26,6 +26,7 @@ class FlyParam:
 
     def set_theta(self, theta):
         self.theta = theta
+
     def get_Cd(self):
         return self.Cd
 

@@ -128,6 +128,7 @@ class SHPS:
 
 
     def A_ECMS(self, I_net):
+        # print("sector Aecms")
         I_prev = self.Ige
         Pnet = I_net*self.Ub
         P_upper = (I_prev*self.Ub + 300)/1000
@@ -153,6 +154,7 @@ class SHPS:
         #print([P_lower, P_upper, Pnet, self.Ige*self.Ub/1000])
         self.FC = temp[0] /3600000
         self.reduced_FC = temp[0]/temp[1]
+        # print("sector Aecms over")
 
     # def update_GIVEN_P(self, Pengine):
 

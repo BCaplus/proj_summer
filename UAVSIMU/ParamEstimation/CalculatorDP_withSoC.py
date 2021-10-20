@@ -46,13 +46,13 @@ class DP_calculator_withSoC:
         # 离散状态空间写在这里
         self.PLowerBound  = 1 #kW
         self.PUpperBound = 15 #kW
-        self.nDiscrt = 57
+        self.nDiscrt = 71
         self.PInterval = (self.PUpperBound - self.PLowerBound)/(self.nDiscrt  - 1)
 
         # 离散SoC
         self.SoCLowerBound = 0
         self.SoCUpperBound = 1
-        self.mDiscrt = 1001
+        self.mDiscrt = 1251
         self.SoCInterval = (self.SoCUpperBound - self.SoCLowerBound)/(self.mDiscrt - 1)
         # 设计离散时取整除，因此这里不做截断误差检查
 
@@ -96,6 +96,10 @@ class DP_calculator_withSoC:
         # 为变化的末态P预留的空间
         # self.
     # 设定初态SoC
+
+    def set_initial_SoC(self, init_SoC):
+        self.init_SoC =init_SoC
+
     def set_finaL_values_of_SoC(self, final_SoC):
         final_SoC_index = int((final_SoC - self.SoCLowerBound)/self.SoCInterval)
         for i in range(self.nDiscrt):
@@ -111,7 +115,18 @@ class DP_calculator_withSoC:
         outer.to_csv("cF.csv")
         minFC_index = [-1, -1]  # 防空
         minFC = 100  # 初始
-        for m in range(295,305):
+        init_SoC_index = int(self.init_SoC/self.SoCInterval - 0.5)
+        init_SoC_search_range = [init_SoC_index-5, init_SoC_index+5]
+        if init_SoC_search_range[0]<0:
+            temp = 0 - init_SoC_search_range[0]
+            init_SoC_search_range[0] = 0
+            init_SoC_search_range[1] = init_SoC_search_range[1] + temp
+        elif init_SoC_search_range[1]>self.mDiscrt:
+            temp = init_SoC_search_range[1] - self.mDiscrt
+            init_SoC_search_range[1] = self.mDiscrt
+            init_SoC_search_range[0] = init_SoC_search_range[0] - temp
+
+        for m in range(init_SoC_search_range[0], init_SoC_search_range[1]):
             for n in range(self.nDiscrt):
                 if 0<self.Fmass[0][n][m]<minFC:
                     minFC_index = [n, m]
@@ -176,11 +191,13 @@ class DP_calculator_withSoC:
             flightMode = self.profile[k-1][5]
             u_expect = self.profile[k - 1][4]
             v_expect = self.profile[k - 1][3]
+            h = self.profile[k - 1][2]
             # 传递变量
             self.case.set_HF_mode(hfMode)
             self.case.set_flight_mode(flightMode)
             self.case.set_u_ideal(u_expect)
             self.case.set_vertical_speed(v_expect)
+            self.case.set_height(h)
             # 计算
             if k == self.k - 1:
                 cFn = self.costF[k]
@@ -195,6 +212,7 @@ class DP_calculator_withSoC:
         # 后向计算
         # 从状态空间中的每个状态点依次向前更新,状态空间是二维的
         # print(self.Fmass[k][1])
+        print("theta is "+ str(self.case.theta))
         max_SoC_swap = 0
         SoC_k = 0
         for PStateIndex in range(self.nDiscrt):
@@ -409,7 +427,7 @@ class DP_calculator_withSoC:
 S = 4 # 最大截面面积 [m^2]
 cd1 = 0.5 #平飞阻力系数 来自于文献
 cd2 = 1.5 #90度俯仰角阻力系数
-dry_weight = 40+23#干重，包括载荷但不包括电池 [kg]
+dry_weight = 40+13#干重，包括载荷但不包括电池 [kg]
 max_fuel_mass = 12#起飞携带燃油质量 [kg]
 dt = 5  #时间步长 [s]
 capacity = 300#电池容量 [Wh] 需要与电池类所在的脚本里的参数保持一致
@@ -436,14 +454,14 @@ plt.figure(4)
 #plt.plot( Hf_t, miu_motor)
 plt.subplot(2,1,1)
 t = [i*5 for i in range(test.k-1)]
-optCtrl_plot = optCtrl[:-1]
-plt.plot(t, optCtrl_plot[0], label = 'PGE')
+
+plt.plot(t, optCtrl[0][:-1], label = 'PGE')
 #plt.plot(t, average_P_GE, "r--", label = 'Averaged GE Power')
-plt.plot(t, optCtrl_plot[1],"red", label = 'preq')
+plt.plot(t, optCtrl[1][:-1],"red", label = 'preq')
 plt.ylabel(r"P /kW")
 plt.legend(loc=0,ncol=1,fontsize=14)
 plt.subplot(2,1,2)
-plt.plot(t, optCtrl_plot[3], label = 'SoC')
+plt.plot(t, optCtrl[3][:-1], label = 'SoC')
 plt.ylabel('SoC')
 plt.xlabel('time /s')
 

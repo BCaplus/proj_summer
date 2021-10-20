@@ -129,17 +129,25 @@ class Flight:
         # profile[index t h v u flightmode hfmode wspeed]
         for k in range(len(self.profile)):
             if self.profile[k][5] == 1:
+                print("in case HF")
                 self.case.set_flight_mode(self.profile[k][5])
                 self.case.set_HF_mode(self.profile[k][6])
                 self.case.set_wind(self.profile[k][7])
                 self.case.set_u_ideal(self.profile[k][4])
+                self.case.set_height(self.profile[k][2])
+
                 self.case.update_ECMS(wind = 2)
                 self.time_sequence.append(self.case.t)
+                if 40<k<50:
+                    print("selected; Preq is "+ str(self.case.powerSys.get_total_power()))
+                    print("T is " + str(self.case.T))
+                    print("Cd change " + str(self.case.fly.get_Cd()) + "Theta change "+str(self.case.fly.get_theta()))
             else:
-                print('in case vertical')
+                print('in case vertical h is ' + str(self.case.h))
                 self.case.set_flight_mode(self.profile[k][5])
                 self.case.set_wind(self.profile[k][7])
                 self.case.set_vertical_speed(self.profile[k][3])
+                self.case.set_height(self.profile[k][2])
                 self.case.update_ECMS(wind = 2)
                 self.time_sequence.append(self.case.t)
 
@@ -166,18 +174,18 @@ class Flight:
         plt.figure(1)
         # plt.plot( Hf_t, miu_motor)
         plt.subplot(2, 1, 1)
-        plt.plot(t, P_GE, label='发动机输出功率')
+        plt.plot(t, P_GE, label='PICE')
         # plt.plot(t, average_P_GE, "r--", label = 'Averaged GE Power')
-        plt.plot(t, P_need, "red", label='功率需求')
-        plt.ylabel(r"功率 /W")
-        plt.ylim(0, 16000)
+        plt.plot(t, P_need, "red", label='Preq')
+        plt.ylabel(r"PICE /W")
+        plt.ylim(7500, 16000)
         plt.xlim(0, self.case.t + t_excess)
         plt.legend(loc=0, ncol=1, fontsize=14)
         plt.subplot(2, 1, 2)
         plt.plot(t, SoC, label='SoC')
         plt.ylabel('SoC')
-        plt.xlabel('时间 /s')
-        plt.ylim(0.1, 0.45)
+        plt.xlabel('t /s')
+        plt.ylim(0.1,1)
         plt.xlim(0, self.case.t + t_excess)
         plt.show()
 
@@ -284,7 +292,7 @@ class FlightProfileGenerator:
             self.profile.append([t, h, u, v, flightmode, hfmode, wspeed])
 
 
-    def wind_speed_generator(self,average_windspeed, c_period = 40, mc_period = 120):
+    def wind_speed_generator(self,average_windspeed, c_period = 40, mc_period = 240):
         average_wind = average_windspeed
         check_period = c_period
         max_change_periord = mc_period
@@ -298,9 +306,9 @@ class FlightProfileGenerator:
                 temp = random.gauss(average_wind, sigma)
                 temp = (temp - average_wind)*average_wind
                 if temp > 1.2 * average_wind:
-                    temp = 1.22*average_wind
+                    temp = 1.25*average_wind
                 elif temp < -1.2 * average_wind:
-                    temp = -1.2*average_wind
+                    temp = -1.25*average_wind
                 self.wind_speed = temp
 
 
@@ -318,12 +326,10 @@ class FlightProfileGenerator:
         plt.show()
 
 # test = FlightProfileGenerator(5)
-# test.add_climb(500,200,w_on=1,w=5)
-# test.add_hflight(8,200,w_on=0)
-# test.add_hflight(6,200,w_on=1,w=5)
-# test.add_climb(400,200,w_on=0)
-# test.add_hflight(8,500,w_on=1,w=4)
-# # test.add_hflight(6,1200,w_on=1,w=5)
+# test.add_climb(100,200,w_on=1,w=0)
+# test.add_hflight(10,800,w_on=1,w=4)
+# test.add_hflight(10,400,w_on=0)
+# test.add_hflight(10,800,w_on=1,w=6)
 # test.plot_w_curve()
 # test.export_profile()
 
